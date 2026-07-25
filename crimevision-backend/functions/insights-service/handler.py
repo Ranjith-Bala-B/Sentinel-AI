@@ -1,4 +1,5 @@
 import sys
+import json
 from pathlib import Path
 
 # Add project root to sys.path so 'common' module is importable
@@ -6,17 +7,33 @@ root_dir = Path(__file__).resolve().parent.parent.parent
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
-from common.auth_guard import require_role, ALL_ROLES
 from common.schemas import Envelope
 from common.llm_client import generate_text, LlmError
 from common.logger import get_logger
 
 logger = get_logger("insights-service")
 
-@require_role(ALL_ROLES)
-def handler(request, response, user):
-    """GET /insights/summary & GET /insights/district/{id}."""
-    path = request.get_path_info() if hasattr(request, "get_path_info") else "/"
+def handler(request, *args):
+    headers = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "https://sentinel-ai-lzbugrhn.onslate.in",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Max-Age": "86400"
+    }
+
+    method = "GET"
+    if hasattr(request, "get_request_method"):
+        method = request.get_request_method()
+    elif isinstance(request, dict) and "method" in request:
+        method = request["method"]
+
+    if method == "OPTIONS":
+        return {
+            "status_code": 204,
+            "headers": headers,
+            "body": ""
+        }
 
     context = {
         "district": "Bengaluru City",
@@ -45,5 +62,8 @@ def handler(request, response, user):
         ]
     }
 
-    response.set_status(200)
-    response.send(Envelope.ok(result).model_dump_json())
+    return {
+        "status_code": 200,
+        "headers": headers,
+        "body": json.dumps({"status": "success", "data": result})
+    }

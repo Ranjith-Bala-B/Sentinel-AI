@@ -8,33 +8,28 @@ if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
 def handler(request, *args):
-    """
-    Zoho Catalyst Advanced I/O Function Entry Point.
-    Accepts single 'request' argument passed by Catalyst Python runtime.
-    Supports optional second positional parameter (*args) for runtime compatibility.
-    """
-    # 1. Handle CORS Preflight OPTIONS Request
+    headers = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "https://sentinel-ai-lzbugrhn.onslate.in",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Max-Age": "86400"
+    }
+
+    # Handle OPTIONS preflight
     method = "GET"
     if hasattr(request, "get_request_method"):
         method = request.get_request_method()
     elif isinstance(request, dict) and "method" in request:
         method = request["method"]
 
-    headers = {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization"
-    }
-
     if method == "OPTIONS":
         return {
-            "status_code": 200,
+            "status_code": 204,
             "headers": headers,
             "body": ""
         }
 
-    # 2. Build Full Dashboard Analytics Payload matching both TypeScript domain schema & snake_case schema
     response_payload = {
         "status": "success",
         "data": {
@@ -59,7 +54,7 @@ def handler(request, *args):
                 {"district": "Bengaluru City", "count": 480, "riskLevel": "high"},
                 {"district": "Mysuru City", "count": 310, "riskLevel": "moderate"},
                 {"district": "Hubballi-Dharwad", "count": 240, "riskLevel": "moderate"},
-                {"district": "Mangaluru City", "riskLevel": "low"}
+                {"district": "Mangaluru City", "count": 190, "riskLevel": "low"}
             ],
             "topStations": [
                 {"station": "Koramangala PS", "district": "Bengaluru City", "solvedRate": 84.5, "caseload": 120},
@@ -101,33 +96,8 @@ def handler(request, *args):
         }
     }
 
-    body_json = json.dumps(response_payload)
-
-    # 3. Handle dual response mechanisms:
-    if args and hasattr(args[0], "send"):
-        res = args[0]
-        if hasattr(res, "set_status"):
-            res.set_status(200)
-        if hasattr(res, "set_header"):
-            for k, v in headers.items():
-                res.set_header(k, v)
-        res.send(body_json)
-        return
-
-    if hasattr(request, "get_response"):
-        res = request.get_response()
-        if hasattr(res, "set_status"):
-            res.set_status(200)
-        if hasattr(res, "set_header"):
-            for k, v in headers.items():
-                res.set_header(k, v)
-        if hasattr(res, "send"):
-            res.send(body_json)
-            return
-
-    # Return standard Catalyst HTTP response with CORS headers
     return {
         "status_code": 200,
         "headers": headers,
-        "body": body_json
+        "body": json.dumps(response_payload)
     }
