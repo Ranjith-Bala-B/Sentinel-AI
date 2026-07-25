@@ -125,8 +125,9 @@ def handler(request, *args):
             res.send(body_json)
             return
 
-    # Return direct JSON dictionary for Catalyst response format
+    # Return standard Catalyst HTTP response with CORS headers
     return {
-        "status": "success",
-        "data": response_payload["data"]
+        "status_code": 200,
+        "headers": headers,
+        "body": body_json
     }

@@ -1,0 +1,34 @@
+[debug] [2026-07-25T17:03:04.999Z] : 
+[debug] [2026-07-25T17:03:05.003Z] : ----------------------------------------------------------------------
+[debug] [2026-07-25T17:03:05.004Z] : Command:      C:\Users\ranji\AppData\Local\Microsoft\WinGet\Packages\OpenJS.NodeJS.LTS_Microsoft.Winget.Source_8wekyb3d8bbwe\node-v24.18.0-win-x64\node.exe C:\Users\ranji\AppData\Roaming\npm\node_modules\zcatalyst-cli\lib\bin\catalyst.js deploy --only functions:dashboard-service
+[debug] [2026-07-25T17:03:05.004Z] : CLI Version:  1.27.0
+[debug] [2026-07-25T17:03:05.004Z] : Platform:     win32
+[debug] [2026-07-25T17:03:05.004Z] : Node Version: v24.18.0
+[debug] [2026-07-25T17:03:05.005Z] : Time:         Sat Jul 25 2026 22:33:05 GMT+0530 (India Standard Time)
+[debug] [2026-07-25T17:03:05.005Z] : ----------------------------------------------------------------------
+[debug] [2026-07-25T17:03:05.005Z] : 
+[debug] [2026-07-25T17:03:09.061Z] : > authorizing via signed-in user option
+[debug] [2026-07-25T17:03:09.062Z] : > command requires scopes: ["ZohoCatalyst.projects.ALL","ZohoCatalyst.functions.ALL","ZohoCatalyst.webapp.ALL","ZohoCatalyst.appsail.Update"]
+[debug] [2026-07-25T17:03:09.355Z] : >>>> HTTP REQUEST : GET https://api.catalyst.zoho.in/baas/v1/project/46995000000041001 
+
+[debug] [2026-07-25T17:03:09.577Z] : <<<< HTTP RESPONSE : 200
+Response Headers: {"server":"ZGS","date":"Sat, 25 Jul 2026 17:03:08 GMT","content-type":"application/vnd.catalyst.v2+json","transfer-encoding":"chunked","connection":"keep-alive","x-content-type-options":"nosniff","cache-control":"private,no-cache,no-store,max-age=0,must-revalidate","pragma":"no-cache","expires":"Thu, 01 Jan 1970 00:00:00 GMT","x-frame-options":"DENY","strict-transport-security":"max-age=64072000; includeSubDomains; preload"}
+
+[debug] [2026-07-25T17:03:09.584Z] : >>>> HTTP REQUEST : GET https://api.catalyst.zoho.in/baas/v1/project/46995000000041001/environment 
+
+[debug] [2026-07-25T17:03:09.629Z] : <<<< HTTP RESPONSE : 200
+Response Headers: {"server":"ZGS","date":"Sat, 25 Jul 2026 17:03:08 GMT","content-type":"application/vnd.catalyst.v2+json","transfer-encoding":"chunked","connection":"keep-alive","x-content-type-options":"nosniff","cache-control":"private,no-cache,no-store,max-age=0,must-revalidate","pragma":"no-cache","expires":"Thu, 01 Jan 1970 00:00:00 GMT","x-frame-options":"DENY","strict-transport-security":"max-age=64072000; includeSubDomains; preload"}
+
+[debug] [2026-07-25T17:03:09.666Z] : >>>> HTTP REQUEST : GET https://api.catalyst.zoho.in/baas/get-details 
+Query params: {"feature_name":"runtime"}
+
+[debug] [2026-07-25T17:03:09.708Z] : <<<< HTTP RESPONSE : 200
+Response Headers: {"server":"ZGS","date":"Sat, 25 Jul 2026 17:03:09 GMT","content-type":"application/vnd.catalyst.v2+json","transfer-encoding":"chunked","connection":"keep-alive","x-content-type-options":"nosniff","cache-control":"private,no-cache,no-store,max-age=0,must-revalidate","pragma":"no-cache","expires":"Thu, 01 Jan 1970 00:00:00 GMT","x-frame-options":"DENY","strict-transport-security":"max-age=64072000; includeSubDomains; preload"}
+
+[debug] [2026-07-25T17:03:09.715Z] : >>>> HTTP REQUEST : GET https://api.catalyst.zoho.in/baas/v1/project/46995000000041001/function 
+Query params: {"type":"basicio,event,cron,applogic,integration,browser_logic,job"}
+
+[debug] [2026-07-25T17:03:09.761Z] : <<<< HTTP RESPONSE : 200
+Response Headers: {"server":"ZGS","date":"Sat, 25 Jul 2026 17:03:09 GMT","content-type":"application/vnd.catalyst.v2+json","transfer-encoding":"chunked","connection":"keep-alive","x-content-type-options":"nosniff","cache-control":"private,no-cache,no-store,max-age=0,must-revalidate","pragma":"no-cache","expires":"Thu, 01 Jan 1970 00:00:00 GMT","x-frame-options":"DENY","strict-transport-security":"max-age=64072000; includeSubDomains; preload"}
+
+[debug] [2026-07-25T17:03:09.766Z] : unknown eol undefined hence skipping check

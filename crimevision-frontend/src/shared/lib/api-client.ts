@@ -71,7 +71,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     const json = (await res.json()) as Envelope<T>;
     if (json.error) throw new ApiError(json.error.message, res.status);
-    return json.data;
+    return (json.data !== undefined ? json.data : json) as T;
   } catch (err) {
     if (import.meta.env.DEV) {
       const mock = await getDevMock<T>(path, init);
