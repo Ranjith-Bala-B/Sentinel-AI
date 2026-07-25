@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # CrimeVision AI
 
 AI-driven crime analytics and visualization platform for the Zoho Catalyst x Karnataka State Police Datathon.
@@ -74,3 +75,6 @@ Sign in with any of the demo role buttons on the login screen (or any email cont
 10. Notification Center
 11. Dashboard AI Assistant UI polish (backend already live via `assistant-service`)
 12. Unique features layer
+=======
+# Sentinel-AI
+>>>>>>> 26594b168a318178cc74f407cd31aa6370bc479a
