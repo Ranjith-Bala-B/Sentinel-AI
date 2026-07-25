@@ -1,0 +1,11 @@
+{
+  "name": "crimevision-backend",
+  "version": "1.0.0",
+  "description": "Crime Vision AI Backend",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {}
+}

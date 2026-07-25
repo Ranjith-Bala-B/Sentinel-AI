@@ -1,21 +1,14 @@
 /**
- * Central API client for calls to Catalyst API Gateway
- * (/server/crimevision-backend/api/v1/...).
+ * Central API client for calls to Catalyst API Gateway / Serverless Functions.
  *
  * Every request attaches the Catalyst Auth bearer token and
- * unwraps the standard { data, meta, error } envelope returned
- * by every backend function (see common/schemas.py on the backend).
- *
- * Local-dev fallback: when no Catalyst backend is deployed yet, `fetch`
- * fails with a network error rather than a normal HTTP error. In that
- * case (dev mode only) we serve a small set of local mocks so the UI
- * stays fully demoable before `catalyst deploy` - this fallback never
- * runs in production, where a real network failure should surface.
+ * unwraps the standard { data, meta, error } or { status, data } envelope
+ * returned by backend functions.
  */
 import { catalystAuth } from "@/shared/lib/catalyst/client";
 import { getDevMock } from "@/shared/lib/dev-mocks";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/server/crimevision-backend/api/v1";
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "https://sentinel-ai-60073690708.development.catalystserverless.in/server").replace(/\/$/, "");
 
 export class ApiError extends Error {
   status: number;
@@ -29,6 +22,34 @@ interface Envelope<T> {
   data: T;
   meta?: Record<string, unknown>;
   error?: { message: string } | null;
+  status?: string;
+}
+
+/**
+ * Maps standard API routes to their corresponding Catalyst Advanced I/O function endpoints:
+ *  - /dashboard/summary -> /dashboard-service/
+ *  - /auth/*            -> /auth-service/*
+ *  - /crimes/*          -> /crime-service/*
+ *  - /assistant/*       -> /assistant-service/*
+ *  - /insights/*        -> /insights-service/*
+ */
+function resolveEndpointPath(path: string): string {
+  if (path.startsWith("/dashboard")) {
+    return path.replace(/^\/dashboard(\/summary)?/, "/dashboard-service/");
+  }
+  if (path.startsWith("/auth")) {
+    return path.replace(/^\/auth/, "/auth-service");
+  }
+  if (path.startsWith("/crimes")) {
+    return path.replace(/^\/crimes/, "/crime-service");
+  }
+  if (path.startsWith("/assistant")) {
+    return path.replace(/^\/assistant/, "/assistant-service");
+  }
+  if (path.startsWith("/insights")) {
+    return path.replace(/^\/insights/, "/insights-service");
+  }
+  return path;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -37,8 +58,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   headers.set("Content-Type", "application/json");
   if (user) headers.set("Authorization", `Bearer ${user.userId}`);
 
+  const targetUrl = `${BASE_URL}${resolveEndpointPath(path)}`;
+
   try {
-    const res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
+    const res = await fetch(targetUrl, { ...init, headers });
     if (!res.ok) {
       throw new ApiError(`Request to ${path} failed with ${res.status}`, res.status);
     }
@@ -57,7 +80,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw err;
   }
 }
-
 
 export const apiClient = {
   get: <T>(path: string) => request<T>(path, { method: "GET" }),

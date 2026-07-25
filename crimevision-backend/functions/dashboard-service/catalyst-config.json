@@ -1,7 +1,14 @@
 {
-  "deployment_type": "advancedio",
-  "runtime": "python312",
-  "entry_point": "handler.py",
-  "memory": 256,
-  "timeout": 30
+  "name": "dashboard-service",
+  "type": "advancedio",
+  "stack": "python_3_11",
+  "entry": "main.py",
+  "deployment": {
+    "name": "dashboard-service",
+    "type": "advancedio",
+    "stack": "python_3_11"
+  },
+  "execution": {
+    "main": "main.py"
+  }
 }

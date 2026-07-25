@@ -1,7 +1,14 @@
 {
-  "deployment_type": "advancedio",
-  "runtime": "python312",
-  "entry_point": "handler.py",
-  "memory": 128,
-  "timeout": 30
+  "name": "auth-service",
+  "type": "advancedio",
+  "stack": "python_3_11",
+  "entry": "handler.py",
+  "deployment": {
+    "name": "auth-service",
+    "type": "advancedio",
+    "stack": "python_3_11"
+  },
+  "execution": {
+    "main": "handler.py"
+  }
 }

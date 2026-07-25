@@ -1,0 +1,41 @@
+{
+  "name": "crimevision-ai",
+  "version": "1.0.0",
+  "description": "AI-driven crime analytics and visualization platform built for Zoho Catalyst",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "catalyst": "catalyst",
+    "catalyst:install": "npm install -g zcatalyst-cli",
+    "catalyst:version": "catalyst --version",
+    "catalyst:login": "catalyst login",
+    "catalyst:logout": "catalyst logout",
+    "catalyst:init": "catalyst init",
+    "catalyst:serve": "catalyst serve",
+    "catalyst:deploy": "catalyst deploy",
+    "catalyst:deploy:client": "catalyst deploy --only client",
+    "catalyst:deploy:functions": "catalyst deploy --only functions",
+    "catalyst:status": "catalyst status",
+    "catalyst:help": "catalyst --help",
+    "dev:frontend": "npm run dev --prefix crimevision-frontend",
+    "build:frontend": "npm run build --prefix crimevision-frontend",
+    "deploy": "npm run build:frontend && catalyst deploy"
+  },
+  "devDependencies": {
+    "zcatalyst-cli": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "zoho",
+    "catalyst",
+    "zcatalyst-cli",
+    "crimevision-ai",
+    "react",
+    "fastapi"
+  ],
+  "author": "CrimeVision AI Team",
+  "license": "MIT"
+}

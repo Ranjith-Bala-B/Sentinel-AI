@@ -1,0 +1,11 @@
+{
+	"deployment": {
+		"name": "sentinel_ai_function",
+		"stack": "python_3_11",
+		"type": "advancedio",
+		"env_variables": {}
+	},
+	"execution": {
+		"main": "main.py"
+	}
+}

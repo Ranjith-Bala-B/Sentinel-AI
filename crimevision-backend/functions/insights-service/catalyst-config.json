@@ -1,8 +1,14 @@
 {
-  "deployment_type": "advancedio",
-  "runtime": "python312",
-  "entry_point": "handler.py",
-  "memory": 256,
-  "timeout": 45,
-  "env_vars_required": ["ANTHROPIC_API_KEY"]
+  "name": "insights-service",
+  "type": "advancedio",
+  "stack": "python_3_11",
+  "entry": "handler.py",
+  "deployment": {
+    "name": "insights-service",
+    "type": "advancedio",
+    "stack": "python_3_11"
+  },
+  "execution": {
+    "main": "handler.py"
+  }
 }

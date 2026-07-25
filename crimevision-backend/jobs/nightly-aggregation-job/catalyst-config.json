@@ -1,11 +1,16 @@
 {
   "name": "nightly-aggregation-job",
-  "job_type": "cron",
   "type": "cron",
-  "stack": "python3.12",
-  "runtime": "python3.12",
+  "stack": "python_3_11",
   "entry": "run.py",
-  "entry_point": "run.py",
+  "deployment": {
+    "name": "nightly-aggregation-job",
+    "type": "cron",
+    "stack": "python_3_11"
+  },
+  "execution": {
+    "main": "run.py"
+  },
   "schedule": "0 2 * * *",
   "description": "Recomputes KPI, trend, and ranking aggregates for dashboard-service"
 }
