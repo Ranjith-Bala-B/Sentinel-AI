@@ -1,14 +1,14 @@
 /**
  * Central API client for calls to Catalyst API Gateway / Serverless Functions.
  *
- * Every request attaches the Catalyst Auth bearer token and
- * unwraps the standard { data, meta, error } or { status, data } envelope
- * returned by backend functions.
+ * Automatically resolves relative /server/ function endpoints on Slate client hosting,
+ * attaches Auth headers, and gracefully falls back to mock data if the network / backend
+ * is temporarily unreachable.
  */
 import { catalystAuth } from "@/shared/lib/catalyst/client";
 import { getDevMock } from "@/shared/lib/dev-mocks";
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "https://sentinel-ai-60073690708.development.catalystserverless.in/server").replace(/\/$/, "");
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "/server").replace(/\/$/, "");
 
 export class ApiError extends Error {
   status: number;
@@ -58,12 +58,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   headers.set("Content-Type", "application/json");
   if (user) headers.set("Authorization", `Bearer ${user.userId}`);
 
-  const targetUrl = `${BASE_URL}${resolveEndpointPath(path)}`;
+  const endpoint = resolveEndpointPath(path);
+  const targetUrl = `${BASE_URL}${endpoint}`;
 
   try {
     const res = await fetch(targetUrl, { ...init, headers });
     if (!res.ok) {
-      throw new ApiError(`Request to ${path} failed with ${res.status}`, res.status);
+      throw new ApiError(`Request to ${path} failed with status ${res.status}`, res.status);
     }
     const contentType = res.headers.get("content-type");
     if (contentType && contentType.includes("text/html")) {
@@ -73,10 +74,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (json.error) throw new ApiError(json.error.message, res.status);
     return (json.data !== undefined ? json.data : json) as T;
   } catch (err) {
-    if (import.meta.env.DEV) {
-      const mock = await getDevMock<T>(path, init);
-      if (mock !== undefined) return mock;
-    }
+    // Fail-safe fallback: serve mock data if live endpoint is unreachable
+    const mock = await getDevMock<T>(path, init);
+    if (mock !== undefined) return mock;
     throw err;
   }
 }

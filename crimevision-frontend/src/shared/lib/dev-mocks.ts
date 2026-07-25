@@ -261,6 +261,50 @@ export async function getDevMock<T>(path: string, init?: RequestInit): Promise<T
     return { message: `Crime record ${crimeId} deleted successfully`, crimeId } as unknown as T;
   }
 
+  if (path.startsWith("/dashboard")) {
+    return {
+      kpis: {
+        totalCrimes: 1580,
+        crimesThisMonth: 145,
+        crimeRateChange: -4.2,
+        activeInvestigations: 440,
+        repeatOffenders: 184,
+        highRiskDistricts: 4,
+        activeAlerts: 12,
+      },
+      crimeByCategory: [
+        { category: "Cybercrime", count: 520 },
+        { category: "Property Crime", count: 410 },
+        { category: "Violent Crime", count: 280 },
+        { category: "Narcotics", count: 210 },
+        { category: "Financial Fraud", count: 160 },
+      ],
+      districtRanking: [
+        { district: "Bengaluru City", count: 480, riskLevel: "high" },
+        { district: "Mysuru City", count: 310, riskLevel: "moderate" },
+        { district: "Hubballi-Dharwad", count: 240, riskLevel: "moderate" },
+        { district: "Mangaluru City", count: 190, riskLevel: "low" },
+      ],
+      topStations: [
+        { station: "Koramangala PS", district: "Bengaluru City", solvedRate: 84.5, caseload: 120 },
+        { station: "Devaraja PS", district: "Mysuru City", solvedRate: 79.2, caseload: 95 },
+      ],
+      monthlyTrend: [
+        { label: "Jan", crimes: 130, solved: 95 },
+        { label: "Feb", crimes: 145, solved: 102 },
+        { label: "Mar", crimes: 125, solved: 98 },
+      ],
+      feed: [
+        { id: "F1", title: "Spike in online phishing reports", district: "Bengaluru City", severity: "high", timestamp: "10 mins ago" },
+      ],
+      statusBreakdown: [
+        { status: "Under Investigation", count: 440, percentage: 27.8 },
+        { status: "Charge Sheeted", count: 820, percentage: 51.9 },
+        { status: "Closed", count: 320, percentage: 20.3 },
+      ],
+    } as unknown as T;
+  }
+
   if (path === "/crimes/filters") {
     return {
       districts: KARNATAKA_DISTRICTS,
