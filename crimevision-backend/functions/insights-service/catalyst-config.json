@@ -1,0 +1,8 @@
+{
+  "deployment_type": "advancedio",
+  "runtime": "python312",
+  "entry_point": "handler.py",
+  "memory": 256,
+  "timeout": 45,
+  "env_vars_required": ["ANTHROPIC_API_KEY"]
+}

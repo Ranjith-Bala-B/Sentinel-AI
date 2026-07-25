@@ -1,0 +1,13 @@
+{
+  "project_name": "crimevision-backend",
+  "functions": [
+    { "name": "auth-service", "type": "advancedio", "route": "auth-service" },
+    { "name": "dashboard-service", "type": "advancedio", "route": "dashboard-service" },
+    { "name": "crime-service", "type": "advancedio", "route": "crime-service" },
+    { "name": "assistant-service", "type": "advancedio", "route": "assistant-service" },
+    { "name": "insights-service", "type": "advancedio", "route": "insights-service" }
+  ],
+  "job": [
+    { "name": "nightly-aggregation-job", "type": "cron", "schedule": "0 2 * * *" }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "job_type": "cron",
+  "schedule": "0 2 * * *",
+  "runtime": "python312",
+  "entry_point": "run.py",
+  "description": "Recomputes KPI, trend, and ranking aggregates for dashboard-service and writes them to the DashboardAggregates Data Store table."
+}

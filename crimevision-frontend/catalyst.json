@@ -1,0 +1,11 @@
+{
+  "project_name": "crimevision-ai",
+  "client": {
+    "source": "dist",
+    "hosting_type": "spa"
+  },
+  "environments": {
+    "development": { "id": "" },
+    "production": { "id": "" }
+  }
+}

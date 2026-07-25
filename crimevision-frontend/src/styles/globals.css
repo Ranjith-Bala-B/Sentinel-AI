@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  body {
+    font-family: "Inter", sans-serif;
+    background-color: #F0F4F8;
+    color: #1E293B;
+  }
+  ::selection {
+    background: rgba(15, 61, 163, 0.15);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #CBD5E1 transparent;
+  }
+  *:focus-visible {
+    outline: 2px solid #0F3DA3;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-base-850 border border-base-800 shadow-glass;
+  }
+  .glass-card {
+    @apply glass-panel rounded-xl2 p-5;
+  }
+  .label-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-base-500;
+  }
+}
+
+/* Custom visual adjustments */
+.recharts-default-tooltip {
+  background-color: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05) !important;
+}
+
+.recharts-tooltip-label {
+  color: #0F172A !important;
+  font-weight: 600 !important;
+}
+
+/* Disable square focus border on Recharts click/focus */
+.recharts-wrapper,
+.recharts-wrapper *,
+.recharts-surface,
+.recharts-surface *,
+.recharts-sector {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Hide ALL Google Translate top banners, frames, bars, tooltips, and badges */
+.goog-te-banner-frame,
+iframe.goog-te-banner-frame,
+.goog-te-banner,
+.VIpgm-bNvd2c-AgptSc-gT32le-hSRLqb,
+.VIpgm-bNvd2c-AgptSc-hSRLqb,
+iframe[id*=":1.container"],
+iframe[id*=":0.container"],
+iframe[class*="goog"],
+iframe[src*="translate.google"],
+#goog-gt-tt,
+.goog-te-balloon-frame,
+div.skiptranslate:not(#google_translate_element) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0px !important;
+  width: 0px !important;
+  pointer-events: none !important;
+}
+
+/* Ensure body is never shifted down by Google Translate */
+body {
+  top: 0px !important;
+  position: static !important;
+  margin-top: 0px !important;
+}
+
+.goog-te-gadget {
+  display: none !important;
+}
+
+.goog-tooltip,
+.goog-tooltip:hover {
+  display: none !important;
+}
+
+.goog-text-highlight {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+
+
