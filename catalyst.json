@@ -3,9 +3,10 @@
     {
       "name": "sentinel-ai-backend",
       "source": "crimevision-fastapi"
+    },
+    {
+      "name": "sentinel-ai-frontend",
+      "source": "crimevision-frontend"
     }
-  ],
-  "client": {
-    "source": "crimevision-frontend/dist"
-  }
+  ]
 }

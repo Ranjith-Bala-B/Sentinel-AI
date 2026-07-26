@@ -1,0 +1,10 @@
+{
+  "name": "sentinel-ai-frontend",
+  "stack": "node18",
+  "command": "node server.js",
+  "build_path": "./",
+  "env_variables": {
+    "X_CATALYST_PORT": "9000",
+    "PORT": "9000"
+  }
+}
