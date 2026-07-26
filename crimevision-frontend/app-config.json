@@ -2,10 +2,6 @@
   "command": "node server.cjs",
   "build_path": "./",
   "stack": "node18",
-  "env_variables": {
-    "X_CATALYST_PORT": "9000",
-    "PORT": "9000"
-  },
   "memory": 512,
   "scripts": {
     "package": "npm install && npm run build"
