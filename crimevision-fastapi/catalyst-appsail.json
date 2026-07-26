@@ -2,5 +2,8 @@
   "name": "sentinel-ai-backend",
   "stack": "python_3_11",
   "command": "python3 start.py",
-  "build_path": "./"
+  "build_path": "./",
+  "scripts": {
+    "build": "pip install -t ./dependencies -r requirements.txt || pip install -r requirements.txt"
+  }
 }
