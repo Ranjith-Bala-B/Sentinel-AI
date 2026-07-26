@@ -2,7 +2,7 @@
   "appsail": [
     {
       "source": ".",
-      "name": "sentinel-ai"
+      "name": "sentinel-ai-backend"
     }
   ]
 }
