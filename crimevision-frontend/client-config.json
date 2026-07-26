@@ -1,0 +1,8 @@
+{
+  "homepage": "index.html",
+  "error_page": "index.html",
+  "ignore": [
+    "**/.*",
+    "node_modules/**"
+  ]
+}

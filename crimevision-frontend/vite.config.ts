@@ -13,11 +13,22 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/server/crimevision-backend/api/v1": {
-        target: "http://127.0.0.1:8000",
+        target: "https://sentinel-ai-backend-50044342253.development.catalystappsail.in",
         changeOrigin: true,
+        secure: false,
         rewrite: (path) => path.replace(/^\/server\/crimevision-backend\/api\/v1/, ""),
       },
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "icons-vendor": ["lucide-react"],
+        },
+      },
+    },
+  },
 });
-
