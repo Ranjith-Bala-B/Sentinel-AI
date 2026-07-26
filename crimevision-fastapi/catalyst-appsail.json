@@ -2,5 +2,9 @@
   "name": "sentinel-ai-backend",
   "stack": "python_3_11",
   "command": "python3 start.py",
-  "build_path": "./"
+  "build_path": "./",
+  "env_variables": {
+    "X_CATALYST_PORT": "9000",
+    "PORT": "9000"
+  }
 }

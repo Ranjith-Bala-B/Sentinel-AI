@@ -2,7 +2,10 @@
   "command": "python3 start.py",
   "build_path": "./",
   "stack": "python_3_11",
-  "env_variables": {},
+  "env_variables": {
+    "X_CATALYST_PORT": "9000",
+    "PORT": "9000"
+  },
   "memory": 512,
   "scripts": {}
 }

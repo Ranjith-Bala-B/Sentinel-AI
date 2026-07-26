@@ -41,12 +41,12 @@ except Exception as exc:
     print(f"[STARTUP FATAL] Failed to import uvicorn or main:app: {exc}")
     traceback.print_exc()
 
-# 5. Determine dynamic container listening port
-catalyst_port = os.environ.get("X_CATALYST_PORT") or os.environ.get("PORT") or "8080"
+# 5. Determine dynamic container listening port (default 9000 for AppSail proxy routing)
+catalyst_port = os.environ.get("X_CATALYST_PORT") or os.environ.get("PORT") or "9000"
 try:
     port = int(catalyst_port)
 except ValueError:
-    port = 8080
+    port = 9000
 
 if __name__ == "__main__":
     print(f"[STARTUP INFO] Launching Uvicorn on 0.0.0.0:{port}...")
