@@ -17,9 +17,27 @@ from common.models import (
 
 def seed_database():
     print("[SEED] Resetting and creating database tables...")
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
     db = SessionLocal()
+    try:
+        db.query(SimilarCase).delete()
+        db.query(IncidentAlert).delete()
+        db.query(Hotspot).delete()
+        db.query(CrimeNetwork).delete()
+        db.query(CrimeCase).delete()
+        db.query(CrimeCategory).delete()
+        db.query(Officer).delete()
+        db.query(User).delete()
+        db.query(Role).delete()
+        db.query(PoliceStation).delete()
+        db.query(District).delete()
+        db.query(State).delete()
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"[SEED WARN] Clean table query failed: {e}")
+        Base.metadata.drop_all(engine)
+    
+    Base.metadata.create_all(engine)
 
     try:
         # 1. Seed State
@@ -190,7 +208,7 @@ def seed_database():
 
         start_date = datetime(2026, 1, 1)
         for idx in range(7, 77):
-            cid = f"CR-2026-{String(idx).padStart(5, '0')}" if 'String' in globals() else f"CR-2026-{idx:05d}"
+            cid = f"CR-2026-{idx:05d}"
             fir = f"{100 + idx}/2026"
             ctype = crime_types[idx % len(crime_types)]
             st = statuses[idx % len(statuses)]
