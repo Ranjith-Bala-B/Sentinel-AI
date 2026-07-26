@@ -10,12 +10,14 @@ import { Skeleton } from "@/shared/components/skeletons/skeleton";
 import { ErrorBoundary } from "@/shared/components/error-boundary";
 
 export function DashboardPage() {
-  const { data, isLoading, isError } = useDashboardSummary();
+  const { data, isLoading, isError, error } = useDashboardSummary();
 
   if (isError) {
+    const errMsg = error instanceof Error ? error.message : "Unable to connect to local FastAPI backend on http://localhost:8000";
     return (
       <div className="rounded-xl2 border border-alert-red/30 bg-alert-red/5 p-8 text-center text-sm text-alert-red">
-        Failed to load dashboard summary. Check the dashboard-service function logs.
+        <p className="font-semibold">Failed to load dashboard summary</p>
+        <p className="mt-1 text-xs opacity-90">{errMsg}</p>
       </div>
     );
   }

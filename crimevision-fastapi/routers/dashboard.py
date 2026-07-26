@@ -22,16 +22,13 @@ logger = get_logger("dashboard-service")
 router = APIRouter()
 
 def _load_summary_from_db(db: Session) -> DashboardSummary:
-    # Auto-seed to 75 cases if initial cloud database contains fewer records
-    if db.query(CrimeCase).count() < 75:
+    # Auto-seed only if database is completely empty
+    if db.query(CrimeCase).count() == 0:
         try:
-            db.close()
             from seed import seed_database
             seed_database()
-            db = SessionLocal()
         except Exception as e:
             logger.error(f"Auto-seeding error: {e}")
-            db = SessionLocal()
 
     # 1. Total Crimes (Actual DB Count)
     total_crimes = db.query(CrimeCase).count()

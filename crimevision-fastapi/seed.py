@@ -20,24 +20,19 @@ def seed_database():
     try:
         with engine.connect() as conn:
             from sqlalchemy import text
-            conn.execute(text("PRAGMA foreign_keys = OFF;"))
-            conn.execute(text("DELETE FROM similar_cases;"))
-            conn.execute(text("DELETE FROM incident_alerts;"))
-            conn.execute(text("DELETE FROM hotspots;"))
-            conn.execute(text("DELETE FROM crime_networks;"))
-            conn.execute(text("DELETE FROM crimes;"))
-            conn.execute(text("DELETE FROM crime_categories;"))
-            conn.execute(text("DELETE FROM officers;"))
-            conn.execute(text("DELETE FROM users;"))
-            conn.execute(text("DELETE FROM roles;"))
-            conn.execute(text("DELETE FROM police_stations;"))
-            conn.execute(text("DELETE FROM districts;"))
-            conn.execute(text("DELETE FROM states;"))
-            conn.execute(text("PRAGMA foreign_keys = ON;"))
+            if engine.dialect.name == "mysql":
+                conn.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
+            else:
+                conn.execute(text("PRAGMA foreign_keys = OFF;"))
             conn.commit()
     except Exception as e:
-        print(f"[SEED WARN] Clean table query failed: {e}")
-    
+        print(f"[SEED WARN] Foreign key disable warning: {e}")
+
+    try:
+        Base.metadata.drop_all(engine)
+    except Exception as e:
+        print(f"[SEED WARN] Table drop warning: {e}")
+
     Base.metadata.create_all(engine)
     db = SessionLocal()
 

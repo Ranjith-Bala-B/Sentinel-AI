@@ -71,7 +71,9 @@ export function PoliceStationSearchSelect({
       {/* Search Input Trigger Box */}
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full cursor-pointer rounded-lg border border-base-800 bg-base-950 px-3 py-2 text-xs flex items-center justify-between shadow-sm hover:border-base-700 transition-colors focus:ring-1 focus:ring-signal-500"
+        className={`w-full cursor-pointer rounded-lg border bg-base-950 px-3 py-2 text-xs flex items-center justify-between shadow-sm hover:border-base-700 transition-colors focus:ring-1 focus:ring-signal-500 ${
+          required && !value ? "border-red-500/80" : "border-base-800"
+        }`}
       >
         <div className="flex items-center gap-2 overflow-hidden">
           <Building2 className="h-4 w-4 text-signal-500 shrink-0" />
@@ -107,17 +109,7 @@ export function PoliceStationSearchSelect({
         </div>
       </div>
 
-      {/* Hidden input for native HTML form validation if required */}
-      {required && (
-        <input
-          type="text"
-          value={value}
-          onChange={() => {}}
-          required
-          tabIndex={-1}
-          className="opacity-0 absolute inset-0 pointer-events-none h-0 w-0"
-        />
-      )}
+
 
       {/* Dropdown Popup Overlay */}
       {isOpen && (

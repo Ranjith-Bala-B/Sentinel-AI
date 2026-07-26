@@ -391,149 +391,194 @@ def register_crime(payload: CrimeRegisterRequest, user: dict = Depends(require_r
     try:
         # clean datetime string
         clean_date = payload.date_time.replace("Z", "+00:00")
-        dt = datetime.fromisoformat(clean_date)
+        try:
+            dt = datetime.fromisoformat(clean_date)
+        except Exception:
+            dt = datetime.strptime(clean_date.split(".")[0], "%Y-%m-%dT%H:%M")
     except Exception as e:
+        logger.warning(f"Failed to parse date_time string '{payload.date_time}', fallback to current time: {e}")
         dt = datetime.now()
 
-    year = dt.year
-    # Count existing cases for the year to get sequential number
-    count_this_year = db.query(CrimeCase).filter(func.year(CrimeCase.date_time) == year).count()
-    crime_id = f"CR-{year}-{count_this_year + 1:05d}"
+    try:
+        year = dt.year
+        # Query max existing crime_id for the year to avoid duplicate key collisions
+        max_case = db.query(CrimeCase.crime_id).filter(CrimeCase.crime_id.like(f"CR-{year}-%")).order_by(CrimeCase.crime_id.desc()).first()
+        next_seq = 1
+        if max_case and max_case[0]:
+            try:
+                next_seq = int(max_case[0].split("-")[-1]) + 1
+            except Exception:
+                next_seq = db.query(CrimeCase).count() + 1
 
-    # Approximate GPS centers for districts
-    DISTRICT_CENTERS = {
-        "Bengaluru Urban": (12.9716, 77.5946),
-        "Mysuru": (12.2958, 76.6394),
-        "Ballari": (15.1394, 76.9214),
-        "Belagavi": (15.8497, 74.4977),
-        "Hubballi-Dharwad": (15.3647, 75.1240),
-        "Mangaluru": (12.9141, 74.8560),
-        "Tumakuru": (13.3379, 77.1173),
-        "Udupi": (13.3409, 74.7421)
-    }
+        crime_id = f"CR-{year}-{next_seq:05d}"
+        while db.query(CrimeCase).filter(CrimeCase.crime_id == crime_id).first():
+            next_seq += 1
+            crime_id = f"CR-{year}-{next_seq:05d}"
 
-    center = DISTRICT_CENTERS.get(payload.district, (12.9716, 77.5946))
-    import random
-    lat = center[0] + random.uniform(-0.04, 0.04)
-    lng = center[1] + random.uniform(-0.04, 0.04)
+        # Approximate GPS centers for districts
+        DISTRICT_CENTERS = {
+            "Bagalkote": (16.1813, 75.6958),
+            "Ballari": (15.1394, 76.9214),
+            "Belagavi": (15.8497, 74.4977),
+            "Bengaluru Rural": (13.2084, 77.7082),
+            "Bengaluru Urban": (12.9716, 77.5946),
+            "Bidar": (17.9104, 77.5199),
+            "Chamarajanagara": (11.9261, 76.9402),
+            "Chikkaballapura": (13.4324, 77.7285),
+            "Chikkamagaluru": (13.3161, 75.7720),
+            "Chitradurga": (14.2251, 76.4005),
+            "Dakshina Kannada": (12.9141, 74.8560),
+            "Davanagere": (14.4644, 75.9218),
+            "Dharwad": (15.4589, 75.0078),
+            "Gadag": (15.4379, 75.6418),
+            "Hassan": (13.0072, 76.1026),
+            "Haveri": (14.7958, 75.3993),
+            "Kalaburagi": (17.3297, 76.8343),
+            "Kodagu": (12.4244, 75.7397),
+            "Kolar": (13.1368, 78.1292),
+            "Koppal": (15.3478, 76.1553),
+            "Mandya": (12.5218, 76.8951),
+            "Mysuru": (12.2958, 76.6394),
+            "Raichur": (16.2076, 77.3623),
+            "Ramanagara": (12.7256, 77.2811),
+            "Shivamogga": (13.9299, 75.5681),
+            "Tumakuru": (13.3379, 77.1173),
+            "Udupi": (13.3409, 74.7421),
+            "Uttara Kannada": (14.8185, 74.1303),
+            "Vijayanagara": (15.2689, 76.3909),
+            "Yadgir": (16.7649, 77.1377)
+        }
 
-    case = CrimeCase(
-        crime_id=crime_id,
-        fir_number=payload.fir_number,
-        crime_type=payload.crime_type,
-        status=payload.status,
-        date_time=dt,
-        district=payload.district,
-        police_station=payload.police_station,
-        severity_score=payload.severity_score,
-        description=payload.description or f"A case of {payload.crime_type} registered at {payload.police_station}.",
-        victim_age=payload.victim_age,
-        victim_gender=payload.victim_gender,
-        victim_employment=payload.victim_employment,
-        victim_education=payload.victim_education,
-        urbanization=payload.urbanization or "Urban",
-        population_density=payload.population_density or 500,
-        offender_name=payload.offender_name,
-        offender_age=payload.offender_age,
-        offender_is_repeat=payload.offender_is_repeat,
-        modus_operandi=payload.modus_operandi,
-        weapons_used=payload.weapons_used,
-        target_place=payload.target_place,
-        escape_method=payload.escape_method,
-        location_lat=lat,
-        location_lng=lng
-    )
+        center = DISTRICT_CENTERS.get(payload.district, (12.9716, 77.5946))
+        import random
+        lat = center[0] + random.uniform(-0.04, 0.04)
+        lng = center[1] + random.uniform(-0.04, 0.04)
 
-    db.add(case)
-    db.commit()
-    db.refresh(case)
+        case = CrimeCase(
+            crime_id=crime_id,
+            fir_number=payload.fir_number,
+            crime_type=payload.crime_type,
+            status=payload.status,
+            date_time=dt,
+            district=payload.district,
+            police_station=payload.police_station,
+            severity_score=payload.severity_score,
+            description=payload.description or f"A case of {payload.crime_type} registered at {payload.police_station}.",
+            victim_age=payload.victim_age,
+            victim_gender=payload.victim_gender,
+            victim_employment=payload.victim_employment,
+            victim_education=payload.victim_education,
+            urbanization=payload.urbanization or "Urban",
+            population_density=payload.population_density or 500,
+            offender_name=payload.offender_name,
+            offender_age=payload.offender_age,
+            offender_is_repeat=payload.offender_is_repeat,
+            modus_operandi=payload.modus_operandi,
+            weapons_used=payload.weapons_used,
+            target_place=payload.target_place,
+            escape_method=payload.escape_method,
+            location_lat=lat,
+            location_lng=lng
+        )
 
-    # 1. Dynamic network nodes linking
-    if payload.offender_name:
-        # Offender to Crime connection
-        db.add(CrimeNetwork(
-            source_name=payload.offender_name,
-            source_type="accused",
-            target_name=crime_id,
-            target_type="crime",
-            connection_type="perpetrated",
-            strength=2
-        ))
-        # Crime to Location connection
-        db.add(CrimeNetwork(
-            source_name=crime_id,
-            source_type="crime",
-            target_name=f"{payload.police_station} ({payload.district})",
-            target_type="location",
-            connection_type="occurred_at",
-            strength=1
-        ))
+        db.add(case)
+        db.commit()
+        db.refresh(case)
+
+        # 1. Dynamic network nodes linking
+        if payload.offender_name:
+            # Offender to Crime connection
+            db.add(CrimeNetwork(
+                source_name=payload.offender_name,
+                source_type="accused",
+                target_name=crime_id,
+                target_type="crime",
+                connection_type="perpetrated",
+                strength=2
+            ))
+            # Crime to Location connection
+            db.add(CrimeNetwork(
+                source_name=crime_id,
+                source_type="crime",
+                target_name=f"{payload.police_station} ({payload.district})",
+                target_type="location",
+                connection_type="occurred_at",
+                strength=1
+            ))
+            db.commit()
+
+        # 2. Dynamic Hotspot update/creation
+        hotspot_name = f"{payload.police_station} Area"
+        hotspot = db.query(Hotspot).filter(Hotspot.name == hotspot_name).first()
+        if hotspot:
+            hotspot.crime_count += 1
+            if hotspot.crime_count > 10:
+                hotspot.risk_level = "High"
+            elif hotspot.crime_count > 5:
+                hotspot.risk_level = "Medium"
+            else:
+                hotspot.risk_level = "Low"
+        else:
+            hotspot = Hotspot(
+                name=hotspot_name,
+                latitude=lat,
+                longitude=lng,
+                crime_count=1,
+                risk_level="Low",
+                recommended_action=f"Establish foot patrols and CCTV surveillance near {payload.police_station} limits."
+            )
+            db.add(hotspot)
         db.commit()
 
-    # 2. Dynamic Hotspot update/creation
-    hotspot_name = f"{payload.police_station} Area"
-    hotspot = db.query(Hotspot).filter(Hotspot.name == hotspot_name).first()
-    if hotspot:
-        hotspot.crime_count += 1
-        if hotspot.crime_count > 10:
-            hotspot.risk_level = "High"
-        elif hotspot.crime_count > 5:
-            hotspot.risk_level = "Medium"
-        else:
-            hotspot.risk_level = "Low"
-    else:
-        hotspot = Hotspot(
-            name=hotspot_name,
-            latitude=lat,
-            longitude=lng,
-            crime_count=1,
-            risk_level="Low",
-            recommended_action=f"Establish foot patrols and CCTV surveillance near {payload.police_station} limits."
+        # 3. Dynamic IncidentAlert feed entry
+        alert_id = f"feed-{case.crime_id}"
+        alert = IncidentAlert(
+            id=alert_id,
+            title=f"New {payload.crime_type} registered - FIR {payload.fir_number}",
+            district=payload.district,
+            severity="critical" if payload.severity_score >= 80 else "high" if payload.severity_score >= 60 else "moderate" if payload.severity_score >= 40 else "low",
+            timestamp="Just now",
+            is_read=False
         )
-        db.add(hotspot)
-    db.commit()
+        db.add(alert)
+        db.commit()
 
-    # 3. Dynamic IncidentAlert feed entry
-    alert_id = f"feed-{case.crime_id}"
-    alert = IncidentAlert(
-        id=alert_id,
-        title=f"New {payload.crime_type} registered - FIR {payload.fir_number}",
-        district=payload.district,
-        severity="critical" if payload.severity_score >= 80 else "high" if payload.severity_score >= 60 else "moderate" if payload.severity_score >= 40 else "low",
-        timestamp="Just now",
-        is_read=False
-    )
-    db.add(alert)
-    db.commit()
+        # 4. Dynamic Similar Cases linking
+        similar_cases = db.query(CrimeCase).filter(
+            CrimeCase.crime_type == payload.crime_type,
+            CrimeCase.crime_id != crime_id
+        ).limit(3).all()
+        
+        for sc in similar_cases:
+            db.add(SimilarCase(
+                case_id=crime_id,
+                similar_case_id=sc.crime_id,
+                similarity_score=random.randint(70, 95),
+                common_features=f"Identical crime category ({payload.crime_type}) with matching MO patterns.",
+                investigation_lead=f"Coordinate with {sc.police_station} investigator to cross-reference suspect files."
+            ))
+            db.add(SimilarCase(
+                case_id=sc.crime_id,
+                similar_case_id=crime_id,
+                similarity_score=random.randint(70, 95),
+                common_features=f"Identical crime category ({payload.crime_type}) with matching MO patterns.",
+                investigation_lead=f"Coordinate with {payload.police_station} investigator to cross-reference suspect files."
+            ))
+        db.commit()
 
-    # 4. Dynamic Similar Cases linking
-    similar_cases = db.query(CrimeCase).filter(
-        CrimeCase.crime_type == payload.crime_type,
-        CrimeCase.crime_id != crime_id
-    ).limit(3).all()
-    
-    for sc in similar_cases:
-        db.add(SimilarCase(
-            case_id=crime_id,
-            similar_case_id=sc.crime_id,
-            similarity_score=random.randint(70, 95),
-            common_features=f"Identical crime category ({payload.crime_type}) with matching MO patterns.",
-            investigation_lead=f"Coordinate with {sc.police_station} investigator to cross-reference suspect files."
-        ))
-        db.add(SimilarCase(
-            case_id=sc.crime_id,
-            similar_case_id=crime_id,
-            similarity_score=random.randint(70, 95),
-            common_features=f"Identical crime category ({payload.crime_type}) with matching MO patterns.",
-            investigation_lead=f"Coordinate with {payload.police_station} investigator to cross-reference suspect files."
-        ))
-    db.commit()
+        logger.info(f"Registered new crime {crime_id} FIR {case.fir_number} into MySQL successfully")
 
-    return Envelope.ok({
-        "crimeId": crime_id,
-        "firNumber": case.fir_number,
-        "status": case.status
-    })
+        return Envelope.ok({
+            "crimeId": crime_id,
+            "firNumber": case.fir_number,
+            "status": case.status
+        })
+
+    except Exception as exc:
+        db.rollback()
+        import traceback
+        logger.error(f"Error registering crime case in MySQL: {exc}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Database error registering case: {str(exc)}")
 
 
 class StatusUpdateRequest(BaseModel):

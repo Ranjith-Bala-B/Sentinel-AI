@@ -10,11 +10,13 @@ import random
 router = APIRouter()
 
 @router.get("/map")
+@router.get("/heatmap")
 def get_map_pins(user: dict = Depends(require_role(ALL_ROLES)), db: Session = Depends(get_db)):
-    # Retrieve cases with location coordinates
-    cases = db.query(CrimeCase).filter(CrimeCase.location_lat.isnot(None)).limit(200).all()
+    # Retrieve cases with location coordinates directly from MySQL
+    cases = db.query(CrimeCase).filter(CrimeCase.location_lat.isnot(None)).all()
     pins = []
     for c in cases:
+        sev_label = "High" if c.severity_score >= 70 else "Medium" if c.severity_score >= 40 else "Low"
         pins.append({
             "crimeId": c.crime_id,
             "crimeType": c.crime_type,
@@ -22,9 +24,12 @@ def get_map_pins(user: dict = Depends(require_role(ALL_ROLES)), db: Session = De
             "station": c.police_station,
             "status": c.status,
             "severityScore": c.severity_score,
+            "severity": sev_label,
+            "weight": max(1.0, round((c.severity_score or 50) / 20.0, 1)),
             "lat": c.location_lat,
             "lng": c.location_lng,
-            "dateTime": c.date_time.isoformat()
+            "date": c.date_time.strftime("%Y-%m-%d") if c.date_time else "",
+            "dateTime": c.date_time.isoformat() if c.date_time else ""
         })
     return Envelope.ok(pins)
 

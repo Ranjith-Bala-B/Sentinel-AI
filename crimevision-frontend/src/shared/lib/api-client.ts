@@ -1,15 +1,18 @@
 /**
- * Central API client for calls to Sentinel AI FastAPI AppSail Backend.
+ * Central API client for calls to Sentinel AI FastAPI AppSail / Local Backend.
  *
- * Connects directly to AppSail FastAPI backend, attaches Auth headers,
- * and handles envelope unpacking for live database responses.
+ * Automatically detects localhost environment vs production cloud backend,
+ * attaches Auth headers, and handles envelope unpacking for live database responses.
  */
 import { catalystAuth } from "@/shared/lib/catalyst/client";
 
-const DEFAULT_BACKEND_URL = "https://sentinel-ai-backend-50044342253.development.catalystappsail.in";
+const isLocalhost = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+const DEFAULT_LOCAL_URL = "http://localhost:8000";
+const DEFAULT_REMOTE_URL = "https://sentinel-ai-backend-50044342253.development.catalystappsail.in";
 
 const RAW_URL = import.meta.env.VITE_API_BASE_URL;
-const BASE_URL = (RAW_URL && RAW_URL !== "/server" ? RAW_URL : DEFAULT_BACKEND_URL).replace(/\/$/, "");
+// Force local backend http://localhost:8000 when running on localhost
+const BASE_URL = (isLocalhost ? (RAW_URL && RAW_URL.includes("localhost") ? RAW_URL : DEFAULT_LOCAL_URL) : (RAW_URL && RAW_URL !== "/server" ? RAW_URL : DEFAULT_REMOTE_URL)).replace(/\/$/, "");
 
 export class ApiError extends Error {
   status: number;
@@ -35,9 +38,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   headers.set("Content-Type", "application/json");
 
   // Include user token or default DSP officer token for live FastAPI DB endpoints
-  const user = await catalystAuth.currentUser();
-  const authHeader = user?.userId || "DSP-001";
-  headers.set("Authorization", `Bearer ${authHeader}`);
+  try {
+    const user = await catalystAuth.currentUser();
+    const authHeader = user?.userId || "DSP-001";
+    headers.set("Authorization", `Bearer ${authHeader}`);
+  } catch {
+    headers.set("Authorization", "Bearer DSP-001");
+  }
 
   const endpoint = resolveEndpointPath(path);
   const targetUrl = `${BASE_URL}${endpoint}`;
@@ -45,7 +52,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     const res = await fetch(targetUrl, { ...init, headers });
     if (!res.ok) {
-      throw new ApiError(`Request to ${path} failed with status ${res.status}`, res.status);
+      let errText = `Request to ${path} failed with status ${res.status}`;
+      try {
+        const errJson = await res.json();
+        if (errJson?.message) errText = errJson.message;
+        else if (errJson?.detail) errText = typeof errJson.detail === "string" ? errJson.detail : JSON.stringify(errJson.detail);
+      } catch {
+        // use default status text
+      }
+      throw new ApiError(errText, res.status);
     }
     const contentType = res.headers.get("content-type");
     if (contentType && contentType.includes("text/html")) {
@@ -55,7 +70,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (json.error) throw new ApiError(json.error.message, res.status);
     return (json.data !== undefined ? json.data : json) as T;
   } catch (err) {
-    console.error(`[API ERROR] Request to ${targetUrl} failed:`, err);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[API ERROR] Request to ${targetUrl} failed: ${msg}`);
     throw err;
   }
 }

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { apiClient } from "@/shared/lib/api-client";
 import { ClipboardCheck, ShieldCheck, MapPin, UserPlus, HelpCircle } from "lucide-react";
@@ -12,8 +13,8 @@ const KARNATAKA_DISTRICTS = [
   "Bengaluru Rural",
   "Bengaluru Urban",
   "Bidar",
-  "Chamarajanagar",
-  "Chikkaballapur",
+  "Chamarajanagara",
+  "Chikkaballapura",
   "Chikkamagaluru",
   "Chitradurga",
   "Dakshina Kannada",
@@ -41,10 +42,12 @@ const KARNATAKA_DISTRICTS = [
 
 export function RegisterCrimePage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     fir_number: "",
     crime_type: "Theft",
-    date_time: new Date().toISOString().slice(0, 16), // current local time format for datetime-local
+    date_time: new Date().toISOString().slice(0, 16),
     district: "Bengaluru Urban",
     police_station: "",
     status: "open",
@@ -68,18 +71,46 @@ export function RegisterCrimePage() {
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const val = type === "checkbox" ? (e.target as HTMLInputElement).checked : value;
     setFormData((prev) => ({ ...prev, [name]: val }));
+    // Clear field error on change
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!formData.fir_number.trim()) {
+      errors.fir_number = "FIR Number is required.";
+    }
+    if (!formData.police_station.trim()) {
+      errors.police_station = "Police Station selection is required.";
+    }
+    if (!formData.date_time) {
+      errors.date_time = "Date & Time of occurrence is required.";
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setSuccessMsg("");
     setErrorMsg("");
+
+    // Validate inputs
+    if (!validateForm()) {
+      setErrorMsg("Please fill in all mandatory fields marked with * (FIR Number, Police Station, Date & Time).");
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const payload = {
@@ -95,14 +126,18 @@ export function RegisterCrimePage() {
         payload
       );
 
-      // Invalidate all query caches so Dashboard and Analytics update instantly
+      // Invalidate all React Query caches for real-time sync across all pages
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["crime-analytics"] });
       queryClient.invalidateQueries({ queryKey: ["geospatial"] });
       queryClient.invalidateQueries({ queryKey: ["hotspots"] });
       queryClient.invalidateQueries({ queryKey: ["networks"] });
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
+      queryClient.invalidateQueries({ queryKey: ["offenders"] });
+      queryClient.invalidateQueries({ queryKey: ["predictions"] });
 
-      setSuccessMsg(`Case registered successfully! Assigned Case ID: ${response.crimeId}`);
+      setSuccessMsg(`Case registered successfully in MySQL! Assigned Case ID: ${response.crimeId}. Redirecting to Crime Analytics...`);
+
       // Reset form
       setFormData({
         fir_number: "",
@@ -127,9 +162,16 @@ export function RegisterCrimePage() {
         target_place: "",
         escape_method: ""
       });
+
+      // Automatically navigate to Crime Analytics page after 1.5 seconds
+      setTimeout(() => {
+        navigate("/analytics");
+      }, 1500);
+
     } catch (err: any) {
-      console.error(err);
-      setErrorMsg("Failed to register the case. Please verify connection and inputs.");
+      console.error("[REGISTER CRIME ERROR]", err);
+      const msg = err?.message || String(err);
+      setErrorMsg(`Failed to register case: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -142,17 +184,17 @@ export function RegisterCrimePage() {
         <h1 className="mt-1 font-display text-xl font-semibold text-base-100">KSP Incident Registration Portal</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6" noValidate>
         {/* Banner messages */}
         {successMsg && (
-          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-xs font-bold flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 shrink-0" />
+          <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 rounded-lg text-xs font-bold flex items-center gap-2 animate-in fade-in">
+            <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-400" />
             {successMsg}
           </div>
         )}
         {errorMsg && (
-          <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-xs font-bold flex items-center gap-2">
-            <HelpCircle className="h-4 w-4 shrink-0" />
+          <div className="p-4 bg-red-500/15 border border-red-500/30 text-red-300 rounded-lg text-xs font-bold flex items-center gap-2 animate-in fade-in">
+            <HelpCircle className="h-5 w-5 shrink-0 text-red-400" />
             {errorMsg}
           </div>
         )}
@@ -176,12 +218,16 @@ export function RegisterCrimePage() {
                     <input
                       type="text"
                       name="fir_number"
-                      required
                       placeholder="e.g. 248/2026"
                       value={formData.fir_number}
                       onChange={handleChange}
-                      className="w-full rounded-lg border border-base-800 bg-base-950 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-signal-500"
+                      className={`w-full rounded-lg border bg-base-950 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-signal-500 ${
+                        fieldErrors.fir_number ? "border-red-500" : "border-base-800"
+                      }`}
                     />
+                    {fieldErrors.fir_number && (
+                      <p className="text-[10px] font-semibold text-red-400 mt-1">{fieldErrors.fir_number}</p>
+                    )}
                   </div>
 
                   <div>
@@ -211,11 +257,15 @@ export function RegisterCrimePage() {
                     <input
                       type="datetime-local"
                       name="date_time"
-                      required
                       value={formData.date_time}
                       onChange={handleChange}
-                      className="w-full rounded-lg border border-base-800 bg-base-950 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-signal-500"
+                      className={`w-full rounded-lg border bg-base-950 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-signal-500 ${
+                        fieldErrors.date_time ? "border-red-500" : "border-base-800"
+                      }`}
                     />
+                    {fieldErrors.date_time && (
+                      <p className="text-[10px] font-semibold text-red-400 mt-1">{fieldErrors.date_time}</p>
+                    )}
                   </div>
                 </div>
 
@@ -245,15 +295,21 @@ export function RegisterCrimePage() {
                     <PoliceStationSearchSelect
                       value={formData.police_station}
                       selectedDistrict={formData.district}
-                      required
+                      required={!!fieldErrors.police_station}
                       onChange={(stationName, districtName) => {
                         setFormData((prev) => ({
                           ...prev,
                           police_station: stationName,
                           district: districtName || prev.district,
                         }));
+                        if (fieldErrors.police_station) {
+                          setFieldErrors((prev) => ({ ...prev, police_station: "" }));
+                        }
                       }}
                     />
+                    {fieldErrors.police_station && (
+                      <p className="text-[10px] font-semibold text-red-400 mt-1">{fieldErrors.police_station}</p>
+                    )}
                   </div>
 
                   <div>
@@ -536,9 +592,9 @@ export function RegisterCrimePage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full md:w-auto px-8 py-3 bg-signal-500 text-white font-extrabold text-xs uppercase tracking-widest rounded-lg hover:bg-signal-600 disabled:opacity-50 transition-all shadow-md shrink-0"
+            className="w-full md:w-auto px-8 py-3 bg-signal-500 text-white font-extrabold text-xs uppercase tracking-widest rounded-lg hover:bg-signal-600 disabled:opacity-50 transition-all shadow-md shrink-0 cursor-pointer"
           >
-            {loading ? "Registering in SQLite Ledger..." : "Register KSP Case Record"}
+            {loading ? "Registering in KSP MySQL Ledger..." : "Register KSP Case Record"}
           </button>
         </div>
       </form>

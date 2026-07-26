@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent } from "@/shared/components/ui/card";
 import { apiClient } from "@/shared/lib/api-client";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { MapPin, BarChart3, ShieldAlert, ShieldCheck } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet.heat";
 
 interface MapPinData {
   crimeId: string;
@@ -13,9 +15,12 @@ interface MapPinData {
   station: string;
   status: string;
   severityScore: number;
+  severity?: string;
+  weight?: number;
   lat: number;
   lng: number;
-  dateTime: string;
+  date?: string;
+  dateTime?: string;
 }
 
 interface DistrictStats {
@@ -32,8 +37,8 @@ const KARNATAKA_DISTRICTS = [
   "Bengaluru Rural",
   "Bengaluru Urban",
   "Bidar",
-  "Chamarajanagar",
-  "Chikkaballapur",
+  "Chamarajanagara",
+  "Chikkaballapura",
   "Chikkamagaluru",
   "Chitradurga",
   "Dakshina Kannada",
@@ -66,8 +71,8 @@ const DISTRICT_CENTERS: Record<string, [number, number]> = {
   "Bengaluru Rural": [13.2084, 77.7082],
   "Bengaluru Urban": [12.9716, 77.5946],
   "Bidar": [17.9104, 77.5199],
-  "Chamarajanagar": [11.9261, 76.9402],
-  "Chikkaballapur": [13.4324, 77.7285],
+  "Chamarajanagara": [11.9261, 76.9402],
+  "Chikkaballapura": [13.4324, 77.7285],
   "Chikkamagaluru": [13.3161, 75.7720],
   "Chitradurga": [14.2251, 76.4005],
   "Dakshina Kannada": [12.9141, 74.8560],
@@ -98,47 +103,32 @@ export function GeoSpatialIntelPage() {
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersGroupRef = useRef<L.LayerGroup | null>(null);
   
-  const [pins, setPins] = useState<MapPinData[]>([]);
   const [selectedDistrict, setSelectedDistrict] = useState("All Districts");
   const [selectedStation, setSelectedStation] = useState("All Stations");
-  const [viewMode, setViewMode] = useState<"pins" | "density">("pins");
-  const [districtStats, setDistrictStats] = useState<DistrictStats | null>(null);
+  const [viewMode, setViewMode] = useState<"pins" | "heat" | "density">("heat");
   const [districtsList] = useState<string[]>(["All Districts", ...KARNATAKA_DISTRICTS]);
-  const [loading, setLoading] = useState(true);
 
-  // 1. Fetch map pins
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const pinData = await apiClient.get<MapPinData[]>("/geospatial/map");
-        setPins(pinData);
-      } catch (err) {
-        console.error("Error loading map pins", err);
-      }
-    }
-    loadData();
-  }, []);
+  // 1. Fetch map pins & heatmap via React Query for live auto-syncing
+  const { data: pins = [], isLoading: isPinsLoading } = useQuery<MapPinData[]>({
+    queryKey: ["geospatial", "map"],
+    queryFn: () => apiClient.get<MapPinData[]>("/geospatial/map"),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  // 2. Fetch district stats via React Query
+  const { data: districtStats, isLoading: isStatsLoading } = useQuery<DistrictStats>({
+    queryKey: ["geospatial", "district", selectedDistrict],
+    queryFn: () => apiClient.get<DistrictStats>(`/geospatial/district/${selectedDistrict}`),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
 
   // Reset selected station when district changes
   useEffect(() => {
     setSelectedStation("All Stations");
-  }, [selectedDistrict]);
-
-  // 2. Fetch stats on change
-  useEffect(() => {
-    async function loadStats() {
-      try {
-        setLoading(true);
-        const nameParam = selectedDistrict === "All Districts" ? "All Districts" : selectedDistrict;
-        const stats = await apiClient.get<DistrictStats>(`/geospatial/district/${nameParam}`);
-        setDistrictStats(stats);
-      } catch (err) {
-        console.error("Error loading stats", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadStats();
   }, [selectedDistrict]);
 
   // 3. Initialize Leaflet Map
@@ -170,15 +160,70 @@ export function GeoSpatialIntelPage() {
     };
   }, []);
 
-  // 4. Filter and Plot Map Markers
+  // 4. Filter and Plot Map Layers (Pins, Heatmap, or Density Overlay)
   useEffect(() => {
     const map = mapInstanceRef.current;
     const group = markersGroupRef.current;
-    if (!map || !group || !pins.length) return;
+    if (!map || !group) return;
 
     group.clearLayers();
 
-    if (viewMode === "density") {
+    const filteredPins = pins.filter((p) => {
+      if (!p.lat || !p.lng) return false;
+      if (selectedDistrict !== "All Districts" && p.district !== selectedDistrict) return false;
+      if (selectedStation !== "All Stations" && p.station !== selectedStation) return false;
+      return true;
+    });
+
+    if (viewMode === "heat") {
+      // Heat Map View using leaflet.heat plugin
+      if (filteredPins.length > 0) {
+        const heatPoints: Array<[number, number, number]> = filteredPins.map((p) => [
+          p.lat,
+          p.lng,
+          p.weight || Math.max(1.0, (p.severityScore || 50) / 20.0)
+        ]);
+
+        const heatLayer = L.heatLayer(heatPoints, {
+          radius: 25,
+          blur: 15,
+          maxZoom: 15,
+          minOpacity: 0.4,
+          gradient: {
+            0.2: "#3B82F6", // Low risk blue
+            0.4: "#10B981", // Moderate green
+            0.6: "#F59E0B", // High orange
+            0.8: "#EF4444", // Critical red
+            1.0: "#991B1B"  // Extreme dark red
+          }
+        });
+
+        group.addLayer(heatLayer);
+
+        // Also add small interactive marker clusters over heatmap
+        filteredPins.forEach((pin) => {
+          const marker = L.circleMarker([pin.lat, pin.lng], {
+            radius: 5,
+            fillColor: "#EF4444",
+            color: "#FFFFFF",
+            weight: 1,
+            fillOpacity: 0.8
+          });
+
+          marker.bindPopup(`
+            <div style="font-family: Inter, sans-serif; font-size: 11px; width: 165px; line-height: 1.4;">
+              <b style="color: #0F172A; font-size: 12px; display: block; margin-bottom: 4px;">🔥 ${pin.crimeType}</b>
+              <div style="margin-bottom: 2px;"><b>ID:</b> ${pin.crimeId}</div>
+              <div style="margin-bottom: 2px;"><b>Station:</b> ${pin.station}</div>
+              <div style="margin-bottom: 2px;"><b>District:</b> ${pin.district}</div>
+              <div style="margin-bottom: 2px;"><b>Severity:</b> <span style="color: #EF4444; font-weight: bold;">${pin.severityScore}/100</span></div>
+              <div><b>Status:</b> <span style="text-transform: uppercase; font-weight: 600;">${pin.status}</span></div>
+            </div>
+          `);
+          group.addLayer(marker);
+        });
+      }
+    } else if (viewMode === "density") {
       // Density View: Draw larger color-coded overlays at district centers
       const districts = Array.from(new Set(pins.map(p => p.district))).filter(Boolean);
       districts.forEach((dist) => {
@@ -187,23 +232,22 @@ export function GeoSpatialIntelPage() {
 
         const distPins = pins.filter(p => p.district === dist);
         const count = distPins.length;
-        
-        // Setup colors according to user specification and database level:
-        // Bengaluru Urban (critical/red), Mysuru (high/orange), Udupi (low/green)
+        if (count === 0) return;
+
         let color = "#10B981"; // Low (green)
         let riskLabel = "Low Risk";
-        if (dist === "Bengaluru Urban") {
+        if (count >= 15 || dist === "Bengaluru Urban") {
           color = "#EF4444"; // Critical (red)
           riskLabel = "Critical Density";
-        } else if (dist === "Mysuru" || dist === "Ballari") {
+        } else if (count >= 8 || dist === "Mysuru" || dist === "Ballari") {
           color = "#F59E0B"; // High (orange)
           riskLabel = "High Density";
-        } else if (dist === "Belagavi" || dist === "Hubballi-Dharwad" || dist === "Mangaluru") {
+        } else if (count >= 4) {
           color = "#EAB308"; // Moderate (yellow)
           riskLabel = "Moderate Density";
         }
 
-        const radius = Math.min(50, 15 + count * 0.5);
+        const radius = Math.min(50, 15 + count * 1.5);
 
         const circle = L.circleMarker(center, {
           radius: radius,
@@ -224,20 +268,9 @@ export function GeoSpatialIntelPage() {
 
         group.addLayer(circle);
       });
-
-      // Fit map to show whole Karnataka
-      map.setView([14.5, 75.8], 7);
     } else {
       // Pin View: Plot individual case markers
-      const filteredPins = pins.filter((p) => {
-        if (selectedDistrict !== "All Districts" && p.district !== selectedDistrict) return false;
-        if (selectedStation !== "All Stations" && p.station !== selectedStation) return false;
-        return true;
-      });
-
       filteredPins.forEach((pin) => {
-        if (!pin.lat || !pin.lng) return;
-
         let color = "#3B82F6"; // Low (blue)
         if (pin.severityScore > 75) color = "#EF4444"; // Critical red
         else if (pin.severityScore > 50) color = "#F59E0B"; // High orange
@@ -264,31 +297,31 @@ export function GeoSpatialIntelPage() {
 
         group.addLayer(circle);
       });
+    }
 
-      // Zoom/Center dynamically based on filters
-      if (selectedDistrict !== "All Districts") {
-        const center = DISTRICT_CENTERS[selectedDistrict];
-        if (center) {
-          if (selectedStation !== "All Stations") {
-            const stationPin = filteredPins.find(p => p.station === selectedStation);
-            if (stationPin && stationPin.lat && stationPin.lng) {
-              map.setView([stationPin.lat, stationPin.lng], 13);
-            } else {
-              map.setView(center, 12);
-            }
+    // Zoom/Center dynamically based on filters
+    if (selectedDistrict !== "All Districts") {
+      const center = DISTRICT_CENTERS[selectedDistrict];
+      if (center) {
+        if (selectedStation !== "All Stations") {
+          const stationPin = filteredPins.find(p => p.station === selectedStation);
+          if (stationPin && stationPin.lat && stationPin.lng) {
+            map.setView([stationPin.lat, stationPin.lng], 13);
           } else {
-            map.setView(center, 10);
+            map.setView(center, 12);
           }
+        } else {
+          map.setView(center, 10);
         }
-      } else {
-        try {
-          const coords = filteredPins.map(p => [p.lat, p.lng] as L.LatLngExpression);
-          if (coords.length > 0) {
-            const bounds = L.latLngBounds(coords);
-            map.fitBounds(bounds, { padding: [30, 30] });
-          }
-        } catch (e) {}
       }
+    } else {
+      try {
+        const coords = filteredPins.map(p => [p.lat, p.lng] as L.LatLngExpression);
+        if (coords.length > 0) {
+          const bounds = L.latLngBounds(coords);
+          map.fitBounds(bounds, { padding: [30, 30] });
+        }
+      } catch (e) {}
     }
   }, [pins, viewMode, selectedDistrict, selectedStation]);
 
@@ -297,17 +330,19 @@ export function GeoSpatialIntelPage() {
     ? []
     : Array.from(new Set(pins.filter(p => p.district === selectedDistrict).map(p => p.station))).filter(Boolean);
 
-  const sparklineData = districtStats?.sparkline.map((val, idx) => ({
+  const sparklineData = districtStats?.sparkline?.map((val, idx) => ({
     name: idx.toString(),
     val
   })) || [];
+
+  const loading = isPinsLoading || isStatsLoading;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="label-eyebrow">Geographic Analytics</p>
-          <h1 className="mt-1 font-display text-xl font-semibold text-base-100">GeoSpatial Intelligence Dashboard</h1>
+          <p className="label-eyebrow">Geographic Intelligence</p>
+          <h1 className="mt-1 font-display text-xl font-semibold text-base-100">GIS Heat Map & Spatial Analytics</h1>
         </div>
         
         {/* Selection panel / drill downs */}
@@ -343,8 +378,14 @@ export function GeoSpatialIntelPage() {
             </div>
           )}
 
-          {/* Map view mode toggle (pins vs density map) */}
+          {/* Map view mode toggle (heat vs pins vs density map) */}
           <div className="flex rounded-lg bg-base-900/60 p-1 border border-base-800">
+            <button
+              onClick={() => setViewMode("heat")}
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${viewMode === "heat" ? "bg-signal-500/15 text-signal-300" : "text-base-400 hover:text-base-200"}`}
+            >
+              Heat Map
+            </button>
             <button
               onClick={() => setViewMode("pins")}
               className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${viewMode === "pins" ? "bg-signal-500/15 text-signal-300" : "text-base-400 hover:text-base-200"}`}
@@ -368,34 +409,34 @@ export function GeoSpatialIntelPage() {
             <div className="flex items-center justify-between border-b border-base-800 bg-base-700/50 px-5 py-3.5">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-signal-500" />
-                <span className="text-xs font-bold text-base-100 uppercase tracking-wider">Karnataka Live Map View</span>
+                <span className="text-xs font-bold text-base-100 uppercase tracking-wider">Karnataka Live Spatial Map</span>
               </div>
               <span className="text-[10px] bg-signal-400/10 text-signal-500 font-semibold px-2 py-0.5 rounded border border-signal-400/20">
-                {viewMode === "pins" ? "GIS Incidents Plotted" : "Crime Hotspot Density"}
+                {viewMode === "heat" ? "Leaflet Heat Intensity Layer" : viewMode === "pins" ? "GIS Incidents Plotted" : "Crime Hotspot Density"}
               </span>
             </div>
             <div className="relative h-[480px] w-full">
               <div ref={mapContainerRef} className="h-full w-full z-10" />
               
               {/* Density Map Legend Overlay */}
-              <div className="absolute bottom-4 left-4 z-20 bg-base-950/95 border border-base-800 p-3.5 rounded-lg shadow-md text-[10px] w-36 font-semibold backdrop-blur-sm">
-                <p className="text-base-100 font-bold mb-1.5 border-b border-base-800 pb-1">Crime Density Index</p>
+              <div className="absolute bottom-4 left-4 z-20 bg-base-950/95 border border-base-800 p-3.5 rounded-lg shadow-md text-[10px] w-40 font-semibold backdrop-blur-sm">
+                <p className="text-base-100 font-bold mb-1.5 border-b border-base-800 pb-1">Heat Map Gradient</p>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
-                    <span>Bengaluru (Critical)</span>
+                    <span className="h-2.5 w-2.5 rounded-full bg-red-600" />
+                    <span>Critical Severity (75+)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-                    <span>Mysuru (High)</span>
+                    <span>High Severity (50-74)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
-                    <span>Moderate Districts</span>
+                    <span>Moderate Severity (30-49)</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                    <span>Udupi / Low Districts</span>
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                    <span>Low Severity (&lt;30)</span>
                   </div>
                 </div>
               </div>
@@ -455,7 +496,7 @@ export function GeoSpatialIntelPage() {
                   {/* Police stations details list */}
                   <div className="border-t border-base-800 pt-4">
                     <p className="text-[10px] font-bold text-base-500 uppercase tracking-wider mb-2.5">
-                      {selectedDistrict === "All Districts" ? "Top Police Stations ( caselaod )" : "Stations Breakdown"}
+                      {selectedDistrict === "All Districts" ? "Top Police Stations ( caseload )" : "Stations Breakdown"}
                     </p>
                     <div className="space-y-2">
                       {loading ? (
@@ -482,15 +523,13 @@ export function GeoSpatialIntelPage() {
           </Card>
 
           <Card className="bg-signal-500/5 border-signal-500/20 text-xs shadow-glass">
-            <CardHeader className="py-3 px-5 border-b border-signal-500/10 bg-signal-500/10">
-              <div className="flex items-center gap-2 font-bold text-signal-600">
-                <ShieldAlert className="h-4 w-4" />
-                <span>Drill-down Guidelines</span>
-              </div>
-            </CardHeader>
+            <div className="py-3 px-5 border-b border-signal-500/10 bg-signal-500/10 flex items-center gap-2 font-bold text-signal-600">
+              <ShieldAlert className="h-4 w-4" />
+              <span>Heatmap & GIS Guidelines</span>
+            </div>
             <CardContent className="pt-4">
               <p className="text-base-300 leading-relaxed">
-                Filter by **District** to center the map on specific regions. Drill down further by choosing a specific **Police Station** to automatically zoom in on its exact local crime markers. Toggle **Density Map** to visualize aggregate district threat levels.
+                Toggle **Heat Map** to visualize live spatial density intensity. Filter by **District** to center on specific regions, or select a **Police Station** to automatically zoom in on exact incident markers.
               </p>
             </CardContent>
           </Card>

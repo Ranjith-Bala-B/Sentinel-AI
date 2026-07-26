@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { apiClient } from "@/shared/lib/api-client";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from "recharts";
@@ -29,32 +30,32 @@ export function CrimeHotspotsPage() {
   const mapInstanceRef = useRef<L.Map | null>(null);
   const circleGroupRef = useRef<L.LayerGroup | null>(null);
 
-  const [hotspots, setHotspots] = useState<HotspotData[]>([]);
-  const [trendData, setTrendData] = useState<{ label: string; cases: number }[]>([]);
-  const [distribution, setDistribution] = useState<RiskDist[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Load backend hotspot data using React Query for instant sync
+  const { data: hotspots = [], isLoading: isHotspotsLoading } = useQuery<HotspotData[]>({
+    queryKey: ["hotspots", "active"],
+    queryFn: () => apiClient.get<HotspotData[]>("/hotspots/active"),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
 
-  // Load backend hotspot data
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true);
-        const [active, trend, dist] = await Promise.all([
-          apiClient.get<HotspotData[]>("/hotspots/active"),
-          apiClient.get<{ label: string; cases: number }[]>("/hotspots/trend"),
-          apiClient.get<RiskDist[]>("/hotspots/distribution")
-        ]);
-        setHotspots(active);
-        setTrendData(trend);
-        setDistribution(dist);
-      } catch (err) {
-        console.error("Error loading hotspots", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadData();
-  }, []);
+  const { data: trendData = [], isLoading: isTrendLoading } = useQuery<{ label: string; cases: number }[]>({
+    queryKey: ["hotspots", "trend"],
+    queryFn: () => apiClient.get<{ label: string; cases: number }[]>("/hotspots/trend"),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  const { data: distribution = [], isLoading: isDistLoading } = useQuery<RiskDist[]>({
+    queryKey: ["hotspots", "distribution"],
+    queryFn: () => apiClient.get<RiskDist[]>("/hotspots/distribution"),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  const loading = isHotspotsLoading || isTrendLoading || isDistLoading;
 
   // Initialize Map
   useEffect(() => {

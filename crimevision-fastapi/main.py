@@ -25,10 +25,11 @@ for p in [
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from common.database import engine, Base, SessionLocal
+from sqlalchemy.orm import Session
+from common.database import engine, Base, SessionLocal, get_db
 from common.models import User
 from routers import (
     auth, crimes, dashboard, assistant, insights,
@@ -58,18 +59,24 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_event():
     try:
-        from seed import seed_database
+        # Automatically create missing tables if any
+        Base.metadata.create_all(bind=engine)
         db = SessionLocal()
         try:
             from common.models import CrimeCase
-            print("[STARTUP INFO] Initializing and seeding database tables with 75 records...")
-            seed_database()
+            count = db.query(CrimeCase).count()
+            if count == 0:
+                print("[STARTUP INFO] Initializing and seeding empty database tables...")
+                from seed import seed_database
+                seed_database()
+            else:
+                print(f"[STARTUP INFO] Database active with {count} records. No re-seeding required.")
         finally:
             db.close()
     except Exception as exc:
-        print(f"[STARTUP WARN] Database auto-seed error: {exc}")
+        print(f"[STARTUP WARN] Database auto-seed check error: {exc}")
 
-# Include Routers for all 10 dashboards
+# Include Routers for all dashboards
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
 app.include_router(crimes.router, prefix="/crimes", tags=["crimes"])
@@ -80,9 +87,32 @@ app.include_router(geospatial.router, prefix="/geospatial", tags=["geospatial"])
 app.include_router(hotspots.router, prefix="/hotspots", tags=["hotspots"])
 app.include_router(networks.router, prefix="/networks", tags=["networks"])
 app.include_router(offenders.router, prefix="/offenders", tags=["offenders"])
+app.include_router(offenders.router, prefix="/repeat-offenders", tags=["repeat-offenders"])
 app.include_router(predictions.router, prefix="/predictions", tags=["predictions"])
 app.include_router(sociological.router, prefix="/sociological", tags=["sociological"])
 app.include_router(investigator.router, prefix="/investigator", tags=["investigator"])
+
+@app.get("/api/heatmap")
+def get_heatmap_api(db: Session = Depends(get_db)):
+    from common.models import CrimeCase
+    from common.schemas import Envelope
+    cases = db.query(CrimeCase).filter(CrimeCase.location_lat.isnot(None), CrimeCase.location_lng.isnot(None)).all()
+    heatmap_data = []
+    for c in cases:
+        sev_label = "High" if (c.severity_score or 50) >= 70 else "Medium" if (c.severity_score or 50) >= 40 else "Low"
+        heatmap_data.append({
+            "lat": c.location_lat,
+            "lng": c.location_lng,
+            "weight": max(1.0, round((c.severity_score or 50) / 20.0, 1)),
+            "crime_type": c.crime_type,
+            "severity": sev_label,
+            "district": c.district,
+            "police_station": c.police_station,
+            "status": c.status,
+            "date": c.date_time.strftime("%Y-%m-%d") if c.date_time else "",
+            "crimeId": c.crime_id
+        })
+    return Envelope.ok(heatmap_data)
 
 @app.get("/")
 def root():
@@ -106,14 +136,16 @@ def version():
     }
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc: Exception):
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
     print(f"[UNHANDLED EXCEPTION] {request.method} {request.url.path}: {exc}")
+    traceback.print_exc()
     return JSONResponse(
         status_code=500,
         content={
             "status": "error",
-            "message": "Internal server error",
-            "detail": str(exc) if os.environ.get("DEBUG") == "true" else "An unexpected error occurred"
+            "message": str(exc) if str(exc) else "Internal server error",
+            "detail": traceback.format_exc()
         }
     )
 

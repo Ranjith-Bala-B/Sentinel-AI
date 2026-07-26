@@ -8,5 +8,8 @@
       "name": "sentinel-ai-frontend",
       "source": "crimevision-frontend"
     }
-  ]
+  ],
+  "client": {
+    "source": "crimevision-frontend/dist"
+  }
 }

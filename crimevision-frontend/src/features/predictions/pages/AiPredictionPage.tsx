@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { apiClient } from "@/shared/lib/api-client";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from "recharts";
@@ -24,32 +24,34 @@ interface HeatmapCell {
   risk: number;
 }
 
-export function AiPredictionPage() {
-  const [overview, setOverview] = useState<PredictionOverview | null>(null);
-  const [forecast, setForecast] = useState<ForecastPoint[]>([]);
-  const [heatmap, setHeatmap] = useState<HeatmapCell[]>([]);
-  const [loading, setLoading] = useState(true);
+import { useQuery } from "@tanstack/react-query";
 
-  useEffect(() => {
-    async function loadPredictions() {
-      try {
-        setLoading(true);
-        const [ov, fc, hm] = await Promise.all([
-          apiClient.get<PredictionOverview>("/predictions/overview"),
-          apiClient.get<ForecastPoint[]>("/predictions/forecast"),
-          apiClient.get<HeatmapCell[]>("/predictions/heatmap")
-        ]);
-        setOverview(ov);
-        setForecast(fc);
-        setHeatmap(hm);
-      } catch (err) {
-        console.error("Error loading predictions", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadPredictions();
-  }, []);
+export function AiPredictionPage() {
+  const { data: overview = null, isLoading: isOverviewLoading } = useQuery<PredictionOverview | null>({
+    queryKey: ["predictions", "overview"],
+    queryFn: () => apiClient.get<PredictionOverview>("/predictions/overview"),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  const { data: forecast = [], isLoading: isForecastLoading } = useQuery<ForecastPoint[]>({
+    queryKey: ["predictions", "forecast"],
+    queryFn: () => apiClient.get<ForecastPoint[]>("/predictions/forecast"),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  const { data: heatmap = [], isLoading: isHeatmapLoading } = useQuery<HeatmapCell[]>({
+    queryKey: ["predictions", "heatmap"],
+    queryFn: () => apiClient.get<HeatmapCell[]>("/predictions/heatmap"),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  const loading = isOverviewLoading || isForecastLoading || isHeatmapLoading;
 
   // Pie chart variables
   const categoryData = [
