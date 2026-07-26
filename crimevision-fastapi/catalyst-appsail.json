@@ -1,9 +1,9 @@
 {
   "name": "sentinel-ai-backend",
   "stack": "python_3_11",
-  "command": "bash ./start.sh",
+  "command": "./start.sh",
   "build_path": "./",
   "scripts": {
-    "build": "pip install -r requirements.txt"
+    "build": "pip3 install -r requirements.txt"
   }
 }

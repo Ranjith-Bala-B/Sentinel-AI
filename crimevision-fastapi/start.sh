@@ -1,2 +1,3 @@
-#!/usr/bin/env bash
-python -m uvicorn main:app --host 0.0.0.0 --port ${X_CATALYST_PORT:-${PORT:-8080}}
+#!/bin/bash
+
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8080
