@@ -8,8 +8,10 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Use local SQLite database file
-DATABASE_URL = "sqlite:///./crimevision.db"
+# Use absolute path for local SQLite database file
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.environ.get("DATABASE_PATH", os.path.join(BASE_DIR, "crimevision.db"))
+DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(
     DATABASE_URL,
