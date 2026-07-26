@@ -1,6 +1,6 @@
 {
   "name": "sentinel-ai-backend",
   "stack": "python_3_11",
-  "command": "python main.py",
+  "command": "uvicorn main:app --host 0.0.0.0 --port $X_CATALYST_PORT",
   "build_path": "./"
 }
