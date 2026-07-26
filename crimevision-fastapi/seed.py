@@ -20,6 +20,7 @@ def seed_database():
     try:
         with engine.connect() as conn:
             from sqlalchemy import text
+            conn.execute(text("PRAGMA foreign_keys = OFF;"))
             conn.execute(text("DELETE FROM similar_cases;"))
             conn.execute(text("DELETE FROM incident_alerts;"))
             conn.execute(text("DELETE FROM hotspots;"))
@@ -32,10 +33,10 @@ def seed_database():
             conn.execute(text("DELETE FROM police_stations;"))
             conn.execute(text("DELETE FROM districts;"))
             conn.execute(text("DELETE FROM states;"))
+            conn.execute(text("PRAGMA foreign_keys = ON;"))
             conn.commit()
     except Exception as e:
         print(f"[SEED WARN] Clean table query failed: {e}")
-        Base.metadata.drop_all(engine)
     
     Base.metadata.create_all(engine)
     db = SessionLocal()
