@@ -1,5 +1,5 @@
 {
-  "command": "sh -c 'python3 -m uvicorn main:app --host 0.0.0.0 --port ${X_CATALYST_PORT:-${PORT:-8080}}'",
+  "command": "bash ./start.sh",
   "build_path": "./",
   "stack": "python_3_11",
   "env_variables": {},
