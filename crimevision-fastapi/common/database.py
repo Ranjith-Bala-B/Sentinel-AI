@@ -14,7 +14,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.environ.get("DATABASE_PATH", os.path.join(BASE_DIR, "crimevision.db"))
 
 if RAW_DB_URL:
-    DATABASE_URL = RAW_DB_URL
+    if RAW_DB_URL.startswith("mysql://"):
+        DATABASE_URL = RAW_DB_URL.replace("mysql://", "mysql+pymysql://", 1)
+    else:
+        DATABASE_URL = RAW_DB_URL
 else:
     DATABASE_URL = f"sqlite:///{DB_PATH}"
 

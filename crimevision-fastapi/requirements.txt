@@ -3,6 +3,8 @@ uvicorn[standard]
 python-multipart
 pydantic
 sqlalchemy
+pymysql
+cryptography
 python-dotenv
 requests
 groq
