@@ -1,6 +1,6 @@
 {
   "name": "sentinel-ai-backend",
   "stack": "python_3_11",
-  "command": "python -m uvicorn main:app --host 0.0.0.0 --port 8080",
+  "command": "python main.py",
   "build_path": "./"
 }
