@@ -71,4 +71,4 @@ if __name__ == "__main__":
     import uvicorn
     port_str = os.environ.get("PORT") or os.environ.get("X_CATALYST_PORT") or "8080"
     port = int(port_str)
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+    uvicorn.run(app, host="0.0.0.0", port=port)
