@@ -8,15 +8,30 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Use absolute path for local SQLite database file
+# Database URL resolution (MySQL, PostgreSQL, or SQLite)
+RAW_DB_URL = os.environ.get("DATABASE_URL")
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.environ.get("DATABASE_PATH", os.path.join(BASE_DIR, "crimevision.db"))
-DATABASE_URL = f"sqlite:///{DB_PATH}"
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
+if RAW_DB_URL:
+    DATABASE_URL = RAW_DB_URL
+else:
+    DATABASE_URL = f"sqlite:///{DB_PATH}"
+
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        pool_pre_ping=True
+    )
+else:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+        pool_size=10,
+        max_overflow=20
+    )
 
 # Register custom MySQL-compatible datetime functions for SQLite
 @event.listens_for(engine, "connect")

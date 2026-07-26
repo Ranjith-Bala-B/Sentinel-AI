@@ -25,7 +25,8 @@ for p in [
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from common.database import engine, Base, SessionLocal
 from common.models import User
@@ -91,6 +92,27 @@ def root():
 @app.get("/healthz")
 def health():
     return {"status": "ok"}
+
+@app.get("/version")
+def version():
+    return {
+        "status": "success",
+        "version": "1.0.0",
+        "app": "Sentinel AI - CrimeVision API",
+        "environment": "production"
+    }
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc: Exception):
+    print(f"[UNHANDLED EXCEPTION] {request.method} {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "error",
+            "message": "Internal server error",
+            "detail": str(exc) if os.environ.get("DEBUG") == "true" else "An unexpected error occurred"
+        }
+    )
 
 if __name__ == "__main__":
     import uvicorn

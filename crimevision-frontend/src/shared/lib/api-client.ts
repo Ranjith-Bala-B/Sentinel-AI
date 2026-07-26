@@ -34,6 +34,9 @@ interface Envelope<T> {
  *  - /insights/*        -> /insights-service/*
  */
 function resolveEndpointPath(path: string): string {
+  if (BASE_URL.includes("catalystappsail.in") || BASE_URL.includes(":8080") || BASE_URL.includes(":8085")) {
+    return path;
+  }
   if (path.startsWith("/dashboard")) {
     return path.replace(/^\/dashboard(\/summary)?/, "/dashboard-service/");
   }
