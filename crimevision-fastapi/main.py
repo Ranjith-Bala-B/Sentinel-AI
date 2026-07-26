@@ -8,22 +8,6 @@ from routers import (
     predictions, sociological, investigator, admin
 )
 
-# Initialize tables
-Base.metadata.create_all(engine)
-
-# Seed default users if empty
-db = SessionLocal()
-if db.query(User).count() == 0:
-    users = [
-        User(email="admin@ksp.gov.in", password_hash="admin123", name="KSP Administrator", role="administrator"),
-        User(email="supervisor@ksp.gov.in", password_hash="supervisor123", name="Dr. Ravishankar S", role="supervisor"),
-        User(email="analyst@ksp.gov.in", password_hash="analyst123", name="Kavitha Gowda", role="analyst"),
-        User(email="investigator@ksp.gov.in", password_hash="investigator123", name="Mahesh Kumar", role="investigator"),
-    ]
-    db.add_all(users)
-    db.commit()
-db.close()
-
 app = FastAPI(title="CrimeVision API", version="1.0")
 
 app.add_middleware(
@@ -33,6 +17,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+def startup_event():
+    try:
+        Base.metadata.create_all(engine)
+        db = SessionLocal()
+        try:
+            if db.query(User).count() == 0:
+                users = [
+                    User(email="admin@ksp.gov.in", password_hash="admin123", name="KSP Administrator", role="administrator"),
+                    User(email="supervisor@ksp.gov.in", password_hash="supervisor123", name="Dr. Ravishankar S", role="supervisor"),
+                    User(email="analyst@ksp.gov.in", password_hash="analyst123", name="Kavitha Gowda", role="analyst"),
+                    User(email="investigator@ksp.gov.in", password_hash="investigator123", name="Mahesh Kumar", role="investigator"),
+                ]
+                db.add_all(users)
+                db.commit()
+        finally:
+            db.close()
+    except Exception as exc:
+        print(f"Startup database initialization error: {exc}")
 
 # Include Routers for all 10 dashboards
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
