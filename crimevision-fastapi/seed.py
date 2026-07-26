@@ -49,14 +49,20 @@ def seed_database():
 
         # 3. Seed Police Stations
         STATION_MAPPING = {
-            "Bengaluru Urban": ["Manipal Ps", "hebbal ps", "Whitefield PS", "Devanahalli PS"],
-            "Mysuru": ["Mysuru PS", "Nazarbad PS"],
+            "Bengaluru Urban": ["Manipal Ps", "hebbal ps", "Whitefield PS", "Devanahalli PS", "Koramangala PS", "Indiranagar PS"],
+            "Mysuru": ["Mysuru PS", "Nazarbad PS", "Devaraja PS"],
             "Ballari": ["hebbal ps", "Ballari City PS"],
-            "Chikkaballapura": ["Mysuru PS"],
-            "Davanagere": ["Mysuru PS"]
+            "Chikkaballapura": ["Mysuru PS", "Chikkaballapura Town PS"],
+            "Davanagere": ["Mysuru PS", "Davanagere Central PS"],
+            "Belagavi": ["Belagavi Town PS"],
+            "Kalaburagi": ["Kalaburagi Central PS"],
+            "Dakshina Kannada": ["Mangaluru North PS"],
+            "Udupi": ["Udupi Town PS"],
+            "Hassan": ["Hassan Town PS"]
         }
 
-        for dist_name, station_list in STATION_MAPPING.items():
+        for dist_name in KARNATAKA_DISTRICTS:
+            station_list = STATION_MAPPING.get(dist_name, [f"{dist_name} Town PS", f"{dist_name} Rural PS"])
             dist_obj = district_objs.get(dist_name)
             if dist_obj:
                 for s_name in station_list:
@@ -126,7 +132,10 @@ def seed_database():
             ("Theft", 50, "Property theft and unlawful taking of belongings"),
             ("Cybercrime", 60, "Online financial fraud, phishing, and digital identity theft"),
             ("Burglary", 66, "Illegal entry into premises to commit theft"),
-            ("Narcotics", 100, "Illegal drug distribution and possession")
+            ("Narcotics", 100, "Illegal drug distribution and possession"),
+            ("Assault", 80, "Physical attack or violent confrontation"),
+            ("Vehicle theft", 55, "Theft of motor vehicles or two-wheelers"),
+            ("Fraud", 65, "Financial deception or document forgery")
         ]
 
         for cat_name, sev, desc in CATEGORIES:
@@ -134,9 +143,9 @@ def seed_database():
         db.commit()
         print("[OK] Crime Categories seeded.")
 
-        # 7. Seed Exact 5 Crime Cases from User Screenshots
-        EXACT_CASES = [
-            # (crime_id, fir_number, crime_type, status, district, police_station, severity_score, description, offender_name, offender_is_repeat, lat, lng, date_str)
+        # 7. Seed Exact 75 Crime Cases
+        # Exact 5 core user cases first
+        EXACT_5 = [
             ("CR-2026-00006", "444/2026", "Cybercrime", "open", "Davanagere", "Mysuru PS", 67, "dvssdvvdvsd", "L Raja", False, 14.4644, 75.9218, "2026-07-24T14:00:00"),
             ("CR-2026-00004", "58/2026", "Narcotics", "open", "Chikkaballapura", "Mysuru PS", 100, "hvksdk v soldsdc", "Ragul", False, 13.4324, 77.7285, "2026-07-24T11:30:00"),
             ("CR-2026-00003", "248/2026", "Burglary", "pending", "Ballari", "hebbal ps", 66, "A case of Burglary registered at hebbal ps.", "Ranjith", True, 15.1394, 76.9214, "2026-07-24T09:15:00"),
@@ -144,7 +153,7 @@ def seed_database():
             ("CR-2026-00001", "248/2026", "Theft", "closed", "Bengaluru Urban", "Manipal Ps", 50, "jiyccytcuoviipu[oh", "Arul", False, 12.9716, 77.5946, "2026-07-20T10:00:00")
         ]
 
-        for cid, fir, ctype, st, dist, ps, sev, desc, off_name, repeat, lat, lng, dt_str in EXACT_CASES:
+        for cid, fir, ctype, st, dist, ps, sev, desc, off_name, repeat, lat, lng, dt_str in EXACT_5:
             case_date = datetime.fromisoformat(dt_str)
             case = CrimeCase(
                 crime_id=cid,
@@ -172,10 +181,64 @@ def seed_database():
                 location_lng=lng
             )
             db.add(case)
-        db.commit()
-        print("[OK] Exact 5 Crime Cases seeded.")
 
-        # 8. Seed Exact Network Links from Screenshot 5
+        # Procedurally generate 70 more cases to reach exactly 75 records
+        crime_types = ["Theft", "Cybercrime", "Burglary", "Narcotics", "Assault", "Vehicle theft", "Fraud"]
+        statuses = ["open", "pending", "solved", "closed"]
+        repeat_suspects = ["L Raja", "Ranjith", "Karthik Hegde", "Suresh Kumar", "Vikram Reddy", "Rahul Sharma"]
+        other_suspects = ["Anand Rao", "Praveen Gowda", "Manjunath", "Dinesh Patel", "Ketan Naik", "Unidentified"]
+
+        start_date = datetime(2026, 1, 1)
+        for idx in range(7, 77):
+            cid = f"CR-2026-{String(idx).padStart(5, '0')}" if 'String' in globals() else f"CR-2026-{idx:05d}"
+            fir = f"{100 + idx}/2026"
+            ctype = crime_types[idx % len(crime_types)]
+            st = statuses[idx % len(statuses)]
+            dist = KARNATAKA_DISTRICTS[idx % len(KARNATAKA_DISTRICTS)]
+            ps_list = STATION_MAPPING.get(dist, [f"{dist} Town PS"])
+            ps = ps_list[idx % len(ps_list)]
+            sev = 40 + (idx * 7) % 60
+            
+            # Repeat offender logic
+            is_repeat = (idx % 3 == 0)
+            off_name = repeat_suspects[idx % len(repeat_suspects)] if is_repeat else other_suspects[idx % len(other_suspects)]
+            
+            # Random date over last 7 months (Jan to July 2026)
+            days_offset = (idx * 3) % 200
+            c_date = start_date + timedelta(days=days_offset)
+            
+            case = CrimeCase(
+                crime_id=cid,
+                fir_number=fir,
+                crime_type=ctype,
+                status=st,
+                date_time=c_date,
+                district=dist,
+                police_station=ps,
+                severity_score=sev,
+                description=f"Recorded incident of {ctype} in {dist} limits under FIR {fir}.",
+                victim_age=18 + (idx * 5) % 45,
+                victim_gender="Female" if idx % 2 == 0 else "Male",
+                victim_employment="Employed" if idx % 2 == 0 else "Business owner",
+                victim_education="Under Graduate" if idx % 2 == 0 else "High School",
+                urbanization="Urban" if idx % 3 == 0 else "Semi-Urban",
+                population_density=500 + idx * 20,
+                offender_name=off_name,
+                offender_age=22 + (idx * 3) % 30,
+                offender_is_repeat=is_repeat,
+                modus_operandi=f"Standard {ctype.lower()} execution pattern",
+                weapons_used="None" if ctype in ["Cybercrime", "Fraud"] else "Sharp object",
+                target_place="Commercial / Public area",
+                escape_method="On foot / Two-wheeler",
+                location_lat=12.5 + (idx * 0.05) % 3.5,
+                location_lng=75.0 + (idx * 0.05) % 3.5
+            )
+            db.add(case)
+
+        db.commit()
+        print(f"[OK] Total {db.query(CrimeCase).count()} Crime Cases seeded into database.")
+
+        # 8. Seed Crime Networks
         NETWORKS = [
             ("L Raja", "accused", "CR-2026-00006", "crime", "perpetrated", 2),
             ("CR-2026-00006", "crime", "Mysuru PS (Davanagere)", "location", "occurred_at", 1),
@@ -199,13 +262,13 @@ def seed_database():
                 strength=strg
             ))
         db.commit()
-        print("[OK] Exact Crime Networks seeded.")
+        print("[OK] Crime Networks seeded.")
 
         # 9. Seed Hotspots
         HOTSPOTS = [
-            ("Mysuru PS Area", 12.2958, 76.6394, 2, "High", "Establish 24x7 mobile patrolling beats around Mysuru PS limits."),
-            ("hebbal ps Area", 13.0358, 77.5970, 2, "High", "Increase CCTV surveillance and night checkpoints near Hebbal junction."),
-            ("Manipal Ps Area", 12.9716, 77.5946, 1, "Medium", "Deploy foot patrols near commercial banks and parking plazas.")
+            ("Mysuru PS Area", 12.2958, 76.6394, 5, "High", "Establish 24x7 mobile patrolling beats around Mysuru PS limits."),
+            ("hebbal ps Area", 13.0358, 77.5970, 4, "High", "Increase CCTV surveillance and night checkpoints near Hebbal junction."),
+            ("Manipal Ps Area", 12.9716, 77.5946, 3, "Medium", "Deploy foot patrols near commercial banks and parking plazas.")
         ]
 
         for h_name, lat, lng, cnt, r_lvl, rec_act in HOTSPOTS:

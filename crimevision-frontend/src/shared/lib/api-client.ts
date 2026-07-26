@@ -5,7 +5,6 @@
  * and handles envelope unpacking for live database responses.
  */
 import { catalystAuth } from "@/shared/lib/catalyst/client";
-import { getDevMock } from "@/shared/lib/dev-mocks";
 
 const DEFAULT_BACKEND_URL = "https://sentinel-ai-backend-50044342253.development.catalystappsail.in";
 
@@ -56,10 +55,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (json.error) throw new ApiError(json.error.message, res.status);
     return (json.data !== undefined ? json.data : json) as T;
   } catch (err) {
-    console.warn(`[API WARN] Failed to fetch live data from ${targetUrl}:`, err);
-    // Fail-safe fallback: serve mock data if live endpoint is unreachable
-    const mock = await getDevMock<T>(path, init);
-    if (mock !== undefined) return mock;
+    console.error(`[API ERROR] Request to ${targetUrl} failed:`, err);
     throw err;
   }
 }

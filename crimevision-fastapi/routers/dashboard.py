@@ -138,12 +138,13 @@ def _load_summary_from_db(db: Session) -> DashboardSummary:
         
     # 10. Monthly Trend (last 12 months)
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    from sqlalchemy import extract
     trend_query = db.query(
-        func.month(CrimeCase.date_time).label("mth"),
+        extract('month', CrimeCase.date_time).label("mth"),
         func.count(CrimeCase.id).label("crimes"),
         func.sum(case((CrimeCase.status == "solved", 1), else_=0)).label("solved")
-    ).group_by(func.month(CrimeCase.date_time))\
-     .order_by(func.month(CrimeCase.date_time)).all()
+    ).group_by(extract('month', CrimeCase.date_time))\
+     .order_by(extract('month', CrimeCase.date_time)).all()
      
     # Map back to month strings
     monthly_trend = []
