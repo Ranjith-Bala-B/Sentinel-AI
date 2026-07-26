@@ -17,27 +17,28 @@ from common.models import (
 
 def seed_database():
     print("[SEED] Resetting and creating database tables...")
-    db = SessionLocal()
     try:
-        db.query(SimilarCase).delete()
-        db.query(IncidentAlert).delete()
-        db.query(Hotspot).delete()
-        db.query(CrimeNetwork).delete()
-        db.query(CrimeCase).delete()
-        db.query(CrimeCategory).delete()
-        db.query(Officer).delete()
-        db.query(User).delete()
-        db.query(Role).delete()
-        db.query(PoliceStation).delete()
-        db.query(District).delete()
-        db.query(State).delete()
-        db.commit()
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            conn.execute(text("DELETE FROM similar_cases;"))
+            conn.execute(text("DELETE FROM incident_alerts;"))
+            conn.execute(text("DELETE FROM hotspots;"))
+            conn.execute(text("DELETE FROM crime_networks;"))
+            conn.execute(text("DELETE FROM crimes;"))
+            conn.execute(text("DELETE FROM crime_categories;"))
+            conn.execute(text("DELETE FROM officers;"))
+            conn.execute(text("DELETE FROM users;"))
+            conn.execute(text("DELETE FROM roles;"))
+            conn.execute(text("DELETE FROM police_stations;"))
+            conn.execute(text("DELETE FROM districts;"))
+            conn.execute(text("DELETE FROM states;"))
+            conn.commit()
     except Exception as e:
-        db.rollback()
         print(f"[SEED WARN] Clean table query failed: {e}")
         Base.metadata.drop_all(engine)
     
     Base.metadata.create_all(engine)
+    db = SessionLocal()
 
     try:
         # 1. Seed State
