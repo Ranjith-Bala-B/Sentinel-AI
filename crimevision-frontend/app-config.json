@@ -8,7 +8,7 @@
   },
   "memory": 512,
   "scripts": {
-    "package": "npm install && npm run build"
+    "package": "npm install --only=production"
   },
   "ignore": [
     "node_modules/**",
