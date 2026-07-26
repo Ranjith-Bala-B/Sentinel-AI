@@ -1,5 +1,5 @@
 {
-  "command": "uvicorn main:app --host 0.0.0.0 --port $X_CATALYST_PORT",
+  "command": "python3 main.py",
   "build_path": "./",
   "stack": "python_3_11",
   "env_variables": {},
