@@ -6,5 +6,12 @@
   "env_variables": {
     "X_CATALYST_PORT": "9000",
     "PORT": "9000"
-  }
+  },
+  "ignore": [
+    "node_modules/**",
+    "node_modules",
+    ".git/**",
+    ".vscode/**",
+    "*.log"
+  ]
 }

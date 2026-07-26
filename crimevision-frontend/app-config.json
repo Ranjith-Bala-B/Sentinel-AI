@@ -9,5 +9,12 @@
   "memory": 512,
   "scripts": {
     "package": "npm install && npm run build"
-  }
+  },
+  "ignore": [
+    "node_modules/**",
+    "node_modules",
+    ".git/**",
+    ".vscode/**",
+    "*.log"
+  ]
 }
