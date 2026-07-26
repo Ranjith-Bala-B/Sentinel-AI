@@ -109,7 +109,7 @@ def startup_event():
                 db.close()
         else:
             is_healthy, db_name, exc = check_database_health()
-            print("\n✗ MySQL Connection Failed" if "mysql" in str(engine.url).lower() else "\n✗ Database Connection Failed")
+            print("\n[FAIL] MySQL Connection Failed" if "mysql" in str(engine.url).lower() else "\n[FAIL] Database Connection Failed")
             print(f"Reason: {exc}")
             logger.warning("Database connection unavailable at startup. Server starting in standalone mode.")
     except Exception as exc:

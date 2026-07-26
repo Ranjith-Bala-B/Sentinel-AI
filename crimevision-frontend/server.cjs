@@ -17,8 +17,14 @@ app.get('/healthz', (req, res) => {
 });
 
 // 3. Catch-all SPA route handler returning index.html for React Router
+const fs = require('fs');
 app.get('*', (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(200).send("App is still building or dist/index.html is missing. Refresh in a moment.");
+  }
 });
 
 app.listen(port, '0.0.0.0', () => {

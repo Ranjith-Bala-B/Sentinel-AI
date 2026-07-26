@@ -35,6 +35,12 @@ elif MYSQL_HOST or MYSQL_PASSWORD:
 else:
     DATABASE_URL = f"sqlite:///{DB_PATH}"
 
+if "mysql+pymysql" in DATABASE_URL:
+    if "?" in DATABASE_URL:
+        DATABASE_URL += "&connect_timeout=2"
+    else:
+        DATABASE_URL += "?connect_timeout=2"
+
 # Ensure @ in raw mysql passwords is URL encoded (%40)
 if "mysql" in DATABASE_URL and "@" in DATABASE_URL:
     # Check if there are multiple @ symbols (e.g. mysql+pymysql://user:pass@word@host:3306/db)
