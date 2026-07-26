@@ -1,6 +1,5 @@
 fastapi
-uvicorn[standard]
-gunicorn
+uvicorn
 sqlalchemy
 python-dotenv
 python-multipart

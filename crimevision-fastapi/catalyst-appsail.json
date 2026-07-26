@@ -1,6 +1,6 @@
 {
   "name": "sentinel-ai-backend",
   "stack": "python_3_11",
-  "command": "gunicorn",
+  "command": "python3 start.py",
   "build_path": "./"
 }
