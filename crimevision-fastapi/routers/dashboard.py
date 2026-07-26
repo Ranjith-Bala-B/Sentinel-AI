@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 from common.auth_guard import require_role, ALL_ROLES
-from common.database import get_db
+from common.database import get_db, SessionLocal
 from common.models import CrimeCase, IncidentAlert
 from common.schemas import (
     Envelope,
@@ -25,10 +25,13 @@ def _load_summary_from_db(db: Session) -> DashboardSummary:
     # Auto-seed to 75 cases if initial cloud database contains fewer records
     if db.query(CrimeCase).count() < 75:
         try:
+            db.close()
             from seed import seed_database
             seed_database()
+            db = SessionLocal()
         except Exception as e:
             logger.error(f"Auto-seeding error: {e}")
+            db = SessionLocal()
 
     # 1. Total Crimes (Actual DB Count)
     total_crimes = db.query(CrimeCase).count()
