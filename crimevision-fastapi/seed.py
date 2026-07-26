@@ -23,13 +23,11 @@ def seed_database():
 
     try:
         # 1. Seed State
-        state = db.query(State).filter(State.code == "KA").first()
-        if not state:
-            state = State(name="Karnataka", code="KA")
-            db.add(state)
-            db.commit()
-            db.refresh(state)
-            print("[OK] State: Karnataka created.")
+        state = State(name="Karnataka", code="KA")
+        db.add(state)
+        db.commit()
+        db.refresh(state)
+        print("[OK] State: Karnataka created.")
 
         # 2. Seed Districts
         KARNATAKA_DISTRICTS = [
@@ -43,30 +41,27 @@ def seed_database():
 
         district_objs = {}
         for d_name in KARNATAKA_DISTRICTS:
-            d_obj = db.query(District).filter(District.name == d_name).first()
-            if not d_obj:
-                d_obj = District(state_id=state.id, name=d_name, code=d_name[:3].upper(), headquarters=f"{d_name} HQ")
-                db.add(d_obj)
+            d_obj = District(state_id=state.id, name=d_name, code=d_name[:3].upper(), headquarters=f"{d_name} HQ")
+            db.add(d_obj)
             district_objs[d_name] = d_obj
         db.commit()
         print(f"[OK] {len(KARNATAKA_DISTRICTS)} Districts verified.")
 
         # 3. Seed Police Stations
         STATION_MAPPING = {
-            "Bengaluru Urban": ["Whitefield PS", "Koramangala PS", "Indiranagar PS", "M.G. Road PS", "Devanahalli PS"],
-            "Mysuru": ["Nazarbad PS", "Vani Vilas PS", "K.R. Mohalla PS"],
-            "Ballari": ["Ballari City PS", "Cowl Bazaar PS"],
-            "Belagavi": ["Belagavi Town PS", "Camp PS"],
-            "Dharwad": ["Hubballi Central PS", "Suburban PS"]
+            "Bengaluru Urban": ["Manipal Ps", "hebbal ps", "Whitefield PS", "Devanahalli PS"],
+            "Mysuru": ["Mysuru PS", "Nazarbad PS"],
+            "Ballari": ["hebbal ps", "Ballari City PS"],
+            "Chikkaballapura": ["Mysuru PS"],
+            "Davanagere": ["Mysuru PS"]
         }
 
         for dist_name, station_list in STATION_MAPPING.items():
             dist_obj = district_objs.get(dist_name)
             if dist_obj:
                 for s_name in station_list:
-                    station_obj = db.query(PoliceStation).filter(PoliceStation.name == s_name).first()
-                    if not station_obj:
-                        code = s_name.replace(" ", "-").upper()
+                    if not db.query(PoliceStation).filter(PoliceStation.name == s_name, PoliceStation.district_id == dist_obj.id).first():
+                        code = f"{s_name.replace(' ', '-').upper()}-{dist_obj.id}"
                         db.add(PoliceStation(district_id=dist_obj.id, name=s_name, station_code=code, address=f"{s_name}, {dist_name}"))
         db.commit()
         print("[OK] Police Stations seeded.")
@@ -83,15 +78,13 @@ def seed_database():
 
         role_objs = {}
         for r_name, r_desc in ROLES:
-            r_obj = db.query(Role).filter(Role.name == r_name).first()
-            if not r_obj:
-                r_obj = Role(name=r_name, description=r_desc)
-                db.add(r_obj)
+            r_obj = Role(name=r_name, description=r_desc)
+            db.add(r_obj)
             role_objs[r_name] = r_obj
         db.commit()
         print(f"[OK] {len(ROLES)} Roles seeded.")
 
-        # 5. Seed Default Users & Officers
+        # 5. Seed Core Users & Officers
         USERS = [
             ("admin@ksp.gov.in", "admin123", "KSP Administrator", "Super Admin", "DSP-001", "Director General"),
             ("supervisor@ksp.gov.in", "supervisor123", "Dr. Ravishankar S", "State Admin", "DSP-002", "Superintendent"),
@@ -99,124 +92,156 @@ def seed_database():
             ("investigator@ksp.gov.in", "investigator123", "Mahesh Kumar", "Police Officer", "INV-001", "Inspector")
         ]
 
-        bengaluru_ps = db.query(PoliceStation).filter(PoliceStation.name == "Whitefield PS").first()
-        bengaluru_ps_id = bengaluru_ps.id if bengaluru_ps else 1
+        bengaluru_ps = db.query(PoliceStation).filter(PoliceStation.name == "hebbal ps").first()
+        ps_id = bengaluru_ps.id if bengaluru_ps else 1
 
         for email, pwd, name, r_name, badge, rank in USERS:
-            user = db.query(User).filter(User.email == email).first()
-            if not user:
-                r_obj = role_objs.get(r_name)
-                user = User(
-                    email=email,
-                    password_hash=pwd,
-                    name=name,
-                    role=r_name.lower().replace(" ", "_"),
-                    role_id=r_obj.id if r_obj else None,
-                    badge_number=badge
-                )
-                db.add(user)
-                db.commit()
-                db.refresh(user)
+            r_obj = role_objs.get(r_name)
+            user = User(
+                email=email,
+                password_hash=pwd,
+                name=name,
+                role=r_name.lower().replace(" ", "_"),
+                role_id=r_obj.id if r_obj else None,
+                badge_number=badge
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
 
-                officer = Officer(
-                    user_id=user.id,
-                    police_station_id=bengaluru_ps_id,
-                    rank=rank,
-                    badge_number=badge,
-                    assigned_cases_count=random.randint(5, 15),
-                    resolved_cases_count=random.randint(2, 10)
-                )
-                db.add(officer)
+            officer = Officer(
+                user_id=user.id,
+                police_station_id=ps_id,
+                rank=rank,
+                badge_number=badge,
+                assigned_cases_count=3,
+                resolved_cases_count=2
+            )
+            db.add(officer)
         db.commit()
         print("[OK] Core Users & Officers seeded.")
 
         # 6. Seed Crime Categories
         CATEGORIES = [
-            ("Theft", 40, "Property theft and unlawful taking of belongings"),
-            ("Cybercrime", 65, "Online financial fraud, phishing, and digital identity theft"),
-            ("Assault", 75, "Physical violence and bodily harm incidents"),
-            ("Burglary", 60, "Illegal entry into premises to commit theft"),
-            ("Vehicle theft", 50, "Motor vehicle and two-wheeler theft"),
-            ("Fraud", 55, "Financial deception and forgery"),
-            ("Narcotics", 80, "Illegal drug distribution and possession"),
-            ("Robbery", 85, "Theft involving force or intimidation"),
-            ("Homicide", 95, "Unlawful killing of individuals"),
-            ("Extortion", 70, "Coerced financial extraction under threat")
+            ("Theft", 50, "Property theft and unlawful taking of belongings"),
+            ("Cybercrime", 60, "Online financial fraud, phishing, and digital identity theft"),
+            ("Burglary", 66, "Illegal entry into premises to commit theft"),
+            ("Narcotics", 100, "Illegal drug distribution and possession")
         ]
 
         for cat_name, sev, desc in CATEGORIES:
-            if not db.query(CrimeCategory).filter(CrimeCategory.name == cat_name).first():
-                db.add(CrimeCategory(name=cat_name, severity_default=sev, description=desc))
+            db.add(CrimeCategory(name=cat_name, severity_default=sev, description=desc))
         db.commit()
         print("[OK] Crime Categories seeded.")
 
-        # 7. Seed Sample Crime Cases
-        if db.query(CrimeCase).count() == 0:
-            SAMPLE_CASES = [
-                ("CR-2026-00101", "FIR-2026-0891", "Theft", "open", "Bengaluru Urban", "Whitefield PS", 45, "Night break-in at tech park premises stealing laptop hardware.", 29, "Male", "Software Engineer", "Urban", "Rajesh Kumar", 34, True, "Lockpicking backdoor", "Iron crowbar", "Tech Park Office", "Bicycle"),
-                ("CR-2026-00102", "FIR-2026-0892", "Cybercrime", "pending", "Bengaluru Urban", "Devanahalli PS", 70, "Phishing scam targeting online banking credentials.", 42, "Female", "Bank Manager", "Urban", "Anand Sharma", 28, False, "Fake UPI QR code link", "Phishing Software", "Online Payment Gateway", "VPN Routing"),
-                ("CR-2026-00103", "FIR-2026-0893", "Burglary", "solved", "Mysuru", "Nazarbad PS", 60, "Residential jewel theft reported during holiday weekend.", 58, "Male", "Businessman", "Semi-Urban", "Somashekhar N", 41, True, "Window grille cut", "Gas Cutter", "Independent House", "Auto Rickshaw"),
-                ("CR-2026-00104", "FIR-2026-0894", "Assault", "open", "Ballari", "Ballari City PS", 80, "Street altercation following property dispute.", 35, "Male", "Agriculturalist", "Rural", "Prabhu G", 31, True, "Direct confrontation", "Wooden Bat", "Market Square", "Foot Escape"),
-                ("CR-2026-00105", "FIR-2026-0895", "Vehicle theft", "solved", "Belagavi", "Belagavi Town PS", 50, "Two-wheeler stolen from shopping mall parking lot.", 24, "Female", "Student", "Urban", "Sunil V", 26, False, "Duplicate master key", "Master Key", "Public Parking", "Motorcycle Driveaway")
-            ]
-
-            now = datetime.now()
-            for i, (cid, fir, ctype, st, dist, ps, sev, desc, vage, vgen, vemp, urb, off_name, off_age, repeat, mo, weap, target, escape) in enumerate(SAMPLE_CASES):
-                case_date = now - timedelta(days=i * 3 + 1, hours=i * 2)
-                case = CrimeCase(
-                    crime_id=cid,
-                    fir_number=fir,
-                    crime_type=ctype,
-                    status=st,
-                    date_time=case_date,
-                    district=dist,
-                    police_station=ps,
-                    severity_score=sev,
-                    description=desc,
-                    victim_age=vage,
-                    victim_gender=vgen,
-                    victim_employment=vemp,
-                    urbanization=urb,
-                    population_density=600 + i * 100,
-                    offender_name=off_name,
-                    offender_age=off_age,
-                    offender_is_repeat=repeat,
-                    modus_operandi=mo,
-                    weapons_used=weap,
-                    target_place=target,
-                    escape_method=escape,
-                    location_lat=12.9716 + (i * 0.05),
-                    location_lng=77.5946 + (i * 0.05)
-                )
-                db.add(case)
-            db.commit()
-            print("[OK] Sample Crime Cases seeded.")
-
-        # 8. Seed AI Prediction Models
-        models = [
-            ("Sentinel RiskPredict XGBoost", "2.1.0", "XGBoost Classifier", 0.91),
-            ("Karnataka Spatial Hotspot NeuralNet", "1.4.2", "Spatial Convolutional Net", 0.88)
+        # 7. Seed Exact 5 Crime Cases from User Screenshots
+        EXACT_CASES = [
+            # (crime_id, fir_number, crime_type, status, district, police_station, severity_score, description, offender_name, offender_is_repeat, lat, lng, date_str)
+            ("CR-2026-00006", "444/2026", "Cybercrime", "open", "Davanagere", "Mysuru PS", 67, "dvssdvvdvsd", "L Raja", False, 14.4644, 75.9218, "2026-07-24T14:00:00"),
+            ("CR-2026-00004", "58/2026", "Narcotics", "open", "Chikkaballapura", "Mysuru PS", 100, "hvksdk v soldsdc", "Ragul", False, 13.4324, 77.7285, "2026-07-24T11:30:00"),
+            ("CR-2026-00003", "248/2026", "Burglary", "pending", "Ballari", "hebbal ps", 66, "A case of Burglary registered at hebbal ps.", "Ranjith", True, 15.1394, 76.9214, "2026-07-24T09:15:00"),
+            ("CR-2026-00002", "248/2026", "Cybercrime", "solved", "Bengaluru Urban", "hebbal ps", 60, "dsedrtfguhijopl[;lknj", "L Raja", True, 13.0358, 77.5970, "2026-07-22T16:45:00"),
+            ("CR-2026-00001", "248/2026", "Theft", "closed", "Bengaluru Urban", "Manipal Ps", 50, "jiyccytcuoviipu[oh", "Arul", False, 12.9716, 77.5946, "2026-07-20T10:00:00")
         ]
 
-        for mname, mver, alg, acc in models:
-            if not db.query(PredictionModel).filter(PredictionModel.name == mname).first():
-                db.add(PredictionModel(name=mname, version=mver, algorithm=alg, accuracy_score=acc, is_active=True))
+        for cid, fir, ctype, st, dist, ps, sev, desc, off_name, repeat, lat, lng, dt_str in EXACT_CASES:
+            case_date = datetime.fromisoformat(dt_str)
+            case = CrimeCase(
+                crime_id=cid,
+                fir_number=fir,
+                crime_type=ctype,
+                status=st,
+                date_time=case_date,
+                district=dist,
+                police_station=ps,
+                severity_score=sev,
+                description=desc,
+                victim_age=28,
+                victim_gender="Male",
+                victim_employment="Private Service",
+                urbanization="Urban",
+                population_density=1200,
+                offender_name=off_name,
+                offender_age=32,
+                offender_is_repeat=repeat,
+                modus_operandi="Digital phishing & unauthorized access" if ctype == "Cybercrime" else "House break-in",
+                weapons_used="None" if ctype == "Cybercrime" else "Crowbar",
+                target_place="Residential premises",
+                escape_method="Motorcycle",
+                location_lat=lat,
+                location_lng=lng
+            )
+            db.add(case)
         db.commit()
-        print("[OK] AI Models seeded.")
+        print("[OK] Exact 5 Crime Cases seeded.")
 
-        # 9. Seed System Settings
-        settings = [
-            ("PLATFORM_NAME", "Sentinel AI - CrimeVision Platform"),
-            ("STATE_NAME", "Karnataka State Police"),
-            ("ALERT_SEVERITY_THRESHOLD", "75"),
-            ("AUTO_DOSSIER_GENERATION", "true")
+        # 8. Seed Exact Network Links from Screenshot 5
+        NETWORKS = [
+            ("L Raja", "accused", "CR-2026-00006", "crime", "perpetrated", 2),
+            ("CR-2026-00006", "crime", "Mysuru PS (Davanagere)", "location", "occurred_at", 1),
+            ("Ragul", "accused", "CR-2026-00004", "crime", "perpetrated", 2),
+            ("CR-2026-00004", "crime", "Mysuru PS (Chikkaballapura)", "location", "occurred_at", 1),
+            ("Ranjith", "accused", "CR-2026-00003", "crime", "perpetrated", 2),
+            ("CR-2026-00003", "crime", "hebbal ps (Ballari)", "location", "occurred_at", 1),
+            ("L Raja", "accused", "CR-2026-00002", "crime", "perpetrated", 2),
+            ("CR-2026-00002", "crime", "hebbal ps (Bengaluru Urban)", "location", "occurred_at", 1),
+            ("Arul", "accused", "CR-2026-00001", "crime", "perpetrated", 2),
+            ("CR-2026-00001", "crime", "Manipal Ps (Bengaluru Urban)", "location", "occurred_at", 1),
         ]
 
-        for k, v in settings:
-            if not db.query(SystemSetting).filter(SystemSetting.setting_key == k).first():
-                db.add(SystemSetting(setting_key=k, setting_value=v))
+        for s_name, s_type, t_name, t_type, conn_type, strg in NETWORKS:
+            db.add(CrimeNetwork(
+                source_name=s_name,
+                source_type=s_type,
+                target_name=t_name,
+                target_type=t_type,
+                connection_type=conn_type,
+                strength=strg
+            ))
         db.commit()
-        print("[OK] System Settings seeded.")
+        print("[OK] Exact Crime Networks seeded.")
+
+        # 9. Seed Hotspots
+        HOTSPOTS = [
+            ("Mysuru PS Area", 12.2958, 76.6394, 2, "High", "Establish 24x7 mobile patrolling beats around Mysuru PS limits."),
+            ("hebbal ps Area", 13.0358, 77.5970, 2, "High", "Increase CCTV surveillance and night checkpoints near Hebbal junction."),
+            ("Manipal Ps Area", 12.9716, 77.5946, 1, "Medium", "Deploy foot patrols near commercial banks and parking plazas.")
+        ]
+
+        for h_name, lat, lng, cnt, r_lvl, rec_act in HOTSPOTS:
+            db.add(Hotspot(name=h_name, latitude=lat, longitude=lng, crime_count=cnt, risk_level=r_lvl, recommended_action=rec_act))
+        db.commit()
+        print("[OK] Hotspots seeded.")
+
+        # 10. Seed Incident Feed Alerts
+        ALERTS = [
+            ("feed-CR-2026-00006", "New Cybercrime registered - FIR 444/2026", "Davanagere", "moderate", "10 mins ago"),
+            ("feed-CR-2026-00004", "New Narcotics registered - FIR 58/2026", "Chikkaballapura", "critical", "1 hour ago"),
+            ("feed-CR-2026-00003", "New Burglary registered - FIR 248/2026", "Ballari", "high", "3 hours ago"),
+            ("feed-CR-2026-00002", "New Cybercrime registered - FIR 248/2026", "Bengaluru Urban", "high", "5 hours ago")
+        ]
+
+        for aid, title, dist, sev, ts in ALERTS:
+            db.add(IncidentAlert(id=aid, title=title, district=dist, severity=sev, timestamp=ts, is_read=False))
+        db.commit()
+        print("[OK] Incident Feed Alerts seeded.")
+
+        # 11. Seed Similar Cases
+        SIMILAR = [
+            ("CR-2026-00002", "CR-2026-00006", 92, "Identical Cybercrime phishing MO operated by suspect L Raja.", "Cross-reference IP logs with Davanagere cyber team."),
+            ("CR-2026-00006", "CR-2026-00002", 92, "Identical Cybercrime phishing MO operated by suspect L Raja.", "Cross-reference IP logs with Bengaluru Urban cyber team.")
+        ]
+
+        for cid, scid, score, feats, lead in SIMILAR:
+            db.add(SimilarCase(case_id=cid, similar_case_id=scid, similarity_score=score, common_features=feats, investigation_lead=lead))
+        db.commit()
+        print("[OK] Similar Cases seeded.")
+
+        # 12. Seed AI Models & System Settings
+        db.add(PredictionModel(name="Sentinel RiskPredict XGBoost", version="2.1.0", algorithm="XGBoost Classifier", accuracy_score=0.91, is_active=True))
+        db.add(SystemSetting(setting_key="PLATFORM_NAME", setting_value="Sentinel AI - CrimeVision Platform"))
+        db.add(SystemSetting(setting_key="STATE_NAME", setting_value="Karnataka State Police"))
+        db.commit()
 
         print("\n=========================================")
         print("SENTINEL-AI DATABASE SEEDING COMPLETE!")

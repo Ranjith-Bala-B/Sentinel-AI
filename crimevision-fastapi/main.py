@@ -62,8 +62,8 @@ def startup_event():
         db = SessionLocal()
         try:
             from common.models import CrimeCase
-            if db.query(CrimeCase).count() == 0:
-                print("[STARTUP INFO] Initializing and seeding database tables...")
+            if db.query(CrimeCase).count() != 5:
+                print("[STARTUP INFO] Initializing and seeding database tables with exact case dataset...")
                 seed_database()
         finally:
             db.close()
