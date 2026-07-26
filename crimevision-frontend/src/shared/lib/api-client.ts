@@ -1,14 +1,16 @@
 /**
- * Central API client for calls to Catalyst API Gateway / Serverless Functions.
+ * Central API client for calls to Sentinel AI FastAPI AppSail Backend.
  *
- * Automatically resolves relative /server/ function endpoints on Slate client hosting,
- * attaches Auth headers, and gracefully falls back to mock data if the network / backend
- * is temporarily unreachable.
+ * Connects directly to AppSail FastAPI backend, attaches Auth headers,
+ * and handles envelope unpacking for live database responses.
  */
 import { catalystAuth } from "@/shared/lib/catalyst/client";
 import { getDevMock } from "@/shared/lib/dev-mocks";
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "/server").replace(/\/$/, "");
+const DEFAULT_BACKEND_URL = "https://sentinel-ai-backend-50044342253.development.catalystappsail.in";
+
+const RAW_URL = import.meta.env.VITE_API_BASE_URL;
+const BASE_URL = (RAW_URL && RAW_URL !== "/server" ? RAW_URL : DEFAULT_BACKEND_URL).replace(/\/$/, "");
 
 export class ApiError extends Error {
   status: number;
@@ -25,47 +27,18 @@ interface Envelope<T> {
   status?: string;
 }
 
-/**
- * Maps standard API routes to their corresponding Catalyst Advanced I/O function endpoints:
- *  - /dashboard/summary -> /dashboard-service/
- *  - /auth/*            -> /auth-service/*
- *  - /crimes/*          -> /crime-service/*
- *  - /assistant/*       -> /assistant-service/*
- *  - /insights/*        -> /insights-service/*
- */
 function resolveEndpointPath(path: string): string {
-  if (BASE_URL.includes("catalystappsail.in") || BASE_URL.includes(":8080") || BASE_URL.includes(":8085")) {
-    return path;
-  }
-  if (path.startsWith("/dashboard")) {
-    return path.replace(/^\/dashboard(\/summary)?/, "/dashboard-service/");
-  }
-  if (path.startsWith("/auth")) {
-    return path.replace(/^\/auth/, "/auth-service");
-  }
-  if (path.startsWith("/crimes")) {
-    return path.replace(/^\/crimes/, "/crime-service");
-  }
-  if (path.startsWith("/assistant")) {
-    return path.replace(/^\/assistant/, "/assistant-service");
-  }
-  if (path.startsWith("/insights")) {
-    return path.replace(/^\/insights/, "/insights-service");
-  }
   return path;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const method = (init?.method ?? "GET").toUpperCase();
   const headers = new Headers(init?.headers);
   headers.set("Content-Type", "application/json");
 
-  if (method !== "GET") {
-    const user = await catalystAuth.currentUser();
-    if (user) {
-      headers.set("Authorization", `Bearer ${user.userId}`);
-    }
-  }
+  // Include user token or default DSP officer token for live FastAPI DB endpoints
+  const user = await catalystAuth.currentUser();
+  const authHeader = user?.userId || "DSP-001";
+  headers.set("Authorization", `Bearer ${authHeader}`);
 
   const endpoint = resolveEndpointPath(path);
   const targetUrl = `${BASE_URL}${endpoint}`;
@@ -83,6 +56,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (json.error) throw new ApiError(json.error.message, res.status);
     return (json.data !== undefined ? json.data : json) as T;
   } catch (err) {
+    console.warn(`[API WARN] Failed to fetch live data from ${targetUrl}:`, err);
     // Fail-safe fallback: serve mock data if live endpoint is unreachable
     const mock = await getDevMock<T>(path, init);
     if (mock !== undefined) return mock;
