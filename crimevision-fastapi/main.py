@@ -49,22 +49,17 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_event():
     try:
-        Base.metadata.create_all(engine)
+        from seed import seed_database
         db = SessionLocal()
         try:
-            if db.query(User).count() == 0:
-                users = [
-                    User(email="admin@ksp.gov.in", password_hash="admin123", name="KSP Administrator", role="administrator"),
-                    User(email="supervisor@ksp.gov.in", password_hash="supervisor123", name="Dr. Ravishankar S", role="supervisor"),
-                    User(email="analyst@ksp.gov.in", password_hash="analyst123", name="Kavitha Gowda", role="analyst"),
-                    User(email="investigator@ksp.gov.in", password_hash="investigator123", name="Mahesh Kumar", role="investigator"),
-                ]
-                db.add_all(users)
-                db.commit()
+            from common.models import CrimeCase
+            if db.query(CrimeCase).count() == 0:
+                print("[STARTUP INFO] Initializing and seeding database tables...")
+                seed_database()
         finally:
             db.close()
     except Exception as exc:
-        print(f"[STARTUP WARN] Database seed skipped or initialized: {exc}")
+        print(f"[STARTUP WARN] Database auto-seed error: {exc}")
 
 # Include Routers for all 10 dashboards
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
