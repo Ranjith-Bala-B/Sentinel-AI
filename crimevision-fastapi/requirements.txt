@@ -3,7 +3,7 @@ uvicorn[standard]
 gunicorn
 pydantic
 python-dotenv
-groq
 sqlalchemy
 python-multipart
 requests
+groq
