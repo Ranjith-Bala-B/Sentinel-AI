@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { apiClient } from "@/shared/lib/api-client";
 import { ClipboardCheck, ShieldCheck, MapPin, UserPlus, HelpCircle } from "lucide-react";
@@ -39,6 +40,7 @@ const KARNATAKA_DISTRICTS = [
 ];
 
 export function RegisterCrimePage() {
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     fir_number: "",
     crime_type: "Theft",
@@ -92,6 +94,13 @@ export function RegisterCrimePage() {
         "/crimes/register",
         payload
       );
+
+      // Invalidate all query caches so Dashboard and Analytics update instantly
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["crime-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["geospatial"] });
+      queryClient.invalidateQueries({ queryKey: ["hotspots"] });
+      queryClient.invalidateQueries({ queryKey: ["networks"] });
 
       setSuccessMsg(`Case registered successfully! Assigned Case ID: ${response.crimeId}`);
       // Reset form

@@ -6,6 +6,8 @@ export function useDashboardSummary() {
   return useQuery({
     queryKey: queryKeys.dashboardSummary,
     queryFn: dashboardApi.getSummary,
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 }
