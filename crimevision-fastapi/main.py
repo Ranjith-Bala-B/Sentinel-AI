@@ -1,9 +1,27 @@
 import sys
 import os
+import platform
 from pathlib import Path
 
-# Ensure crimevision-fastapi directory is in sys.path
 BASE_DIR = Path(__file__).resolve().parent
+deps_dir = BASE_DIR / "dependencies"
+
+# Add bundled Linux x86_64 dependencies if on Linux / Catalyst container environment
+if platform.system().lower() != "windows":
+    if os.path.exists(deps_dir) and str(deps_dir) not in sys.path:
+        sys.path.insert(0, str(deps_dir))
+
+for p in [
+    "/catalyst/dependencies",
+    "/app/dependencies",
+    os.path.expanduser("~/.local/lib/python3.11/site-packages"),
+    os.path.expanduser("~/.local/lib/python3/site-packages"),
+    "/var/lang/lib/python3.11/site-packages",
+    "/var/lang/lib/python3/site-packages"
+]:
+    if os.path.exists(p) and p not in sys.path:
+        sys.path.insert(0, p)
+
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
@@ -17,7 +35,7 @@ from routers import (
     predictions, sociological, investigator, admin
 )
 
-app = FastAPI(title="CrimeVision API", version="1.0")
+app = FastAPI(title="Sentinel AI - CrimeVision API", version="1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,7 +63,7 @@ def startup_event():
         finally:
             db.close()
     except Exception as exc:
-        print(f"Startup database initialization error: {exc}")
+        print(f"[STARTUP WARN] Database seed skipped or initialized: {exc}")
 
 # Include Routers for all 10 dashboards
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -64,11 +82,18 @@ app.include_router(investigator.router, prefix="/investigator", tags=["investiga
 
 @app.get("/")
 def root():
-    return {"status": "success", "message": "Sentinel AI CrimeVision API is running"}
+    return {
+        "status": "success",
+        "message": "Sentinel AI Backend Running"
+    }
+
+@app.get("/health")
+@app.get("/healthz")
+def health():
+    return {"status": "ok"}
 
 if __name__ == "__main__":
-    import os
     import uvicorn
-    port_str = os.environ.get("PORT") or os.environ.get("X_CATALYST_PORT") or "8080"
-    port = int(port_str)
+    port = int(os.environ.get("X_CATALYST_PORT") or os.environ.get("PORT") or "8080")
+    print(f"[INFO] Starting Sentinel AI FastAPI server on 0.0.0.0:{port}...")
     uvicorn.run(app, host="0.0.0.0", port=port)

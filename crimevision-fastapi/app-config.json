@@ -1,10 +1,8 @@
 {
-  "command": "python3 start.py",
+  "command": "python3 -m uvicorn main:app --host 0.0.0.0 --port 8080",
   "build_path": "./",
   "stack": "python_3_11",
   "env_variables": {},
   "memory": 512,
-  "scripts": {
-    "build": "pip install -t ./dependencies -r requirements.txt || pip install -r requirements.txt"
-  }
+  "scripts": {}
 }
