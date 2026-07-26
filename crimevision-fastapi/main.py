@@ -1,3 +1,12 @@
+import sys
+import os
+from pathlib import Path
+
+# Ensure crimevision-fastapi directory is in sys.path
+BASE_DIR = Path(__file__).resolve().parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from common.database import engine, Base, SessionLocal
@@ -60,5 +69,6 @@ def root():
 if __name__ == "__main__":
     import os
     import uvicorn
-    port = int(os.environ.get("PORT", 8080))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
+    port_str = os.environ.get("X_CATALYST_PORT") or os.environ.get("PORT") or "8080"
+    port = int(port_str)
+    uvicorn.run(app, host="0.0.0.0", port=port)
