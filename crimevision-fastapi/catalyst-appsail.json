@@ -1,9 +1,6 @@
 {
   "name": "sentinel-ai-backend",
   "stack": "python_3_11",
-  "command": "./start.sh",
-  "build_path": "./",
-  "scripts": {
-    "build": "pip3 install -r requirements.txt"
-  }
+  "command": "python3 -m uvicorn main:app --host 0.0.0.0 --port 8080",
+  "build_path": "./"
 }

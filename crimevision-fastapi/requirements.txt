@@ -1,9 +1,9 @@
 fastapi
 uvicorn[standard]
-gunicorn
-pydantic
-python-dotenv
 sqlalchemy
+python-dotenv
 python-multipart
 requests
+pydantic
 groq
+gunicorn
