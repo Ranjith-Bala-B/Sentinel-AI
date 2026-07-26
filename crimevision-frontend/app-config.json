@@ -1,5 +1,5 @@
 {
-  "command": "node server.js",
+  "command": "node server.cjs",
   "build_path": "./",
   "stack": "node18",
   "env_variables": {
