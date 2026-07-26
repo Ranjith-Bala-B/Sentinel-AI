@@ -1,17 +1,18 @@
 import sys
 import os
+import platform
 from pathlib import Path
 
-# 1. Resolve base directory and local dependencies directory
+# 1. Resolve base directory
 BASE_DIR = Path(__file__).resolve().parent
 deps_dir = BASE_DIR / "dependencies"
 
-if str(deps_dir) not in sys.path:
-    sys.path.insert(0, str(deps_dir))
-if str(BASE_DIR) not in sys.path:
-    sys.path.insert(0, str(BASE_DIR))
+# 2. Add bundled Linux dependencies if on Linux / AppSail container environment
+if platform.system().lower() != "windows":
+    if os.path.exists(deps_dir) and str(deps_dir) not in sys.path:
+        sys.path.insert(0, str(deps_dir))
 
-# 2. Add potential Catalyst container paths to sys.path
+# 3. Add potential container package directories to sys.path
 for p in [
     "/catalyst/dependencies",
     "/app/dependencies",
@@ -23,13 +24,25 @@ for p in [
     if os.path.exists(p) and p not in sys.path:
         sys.path.insert(0, p)
 
-import uvicorn
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
-port = int(os.environ.get("X_CATALYST_PORT") or os.environ.get("PORT") or "8080")
+import uvicorn
+from main import app
+
+# 4. Read dynamic port provided by Zoho Catalyst AppSail container
+catalyst_port = os.environ.get("X_CATALYST_PORT") or os.environ.get("PORT") or "8080"
+try:
+    port = int(catalyst_port)
+except ValueError:
+    port = 8080
 
 if __name__ == "__main__":
+    print(f"Launching Sentinel AI FastAPI on 0.0.0.0:{port}...")
     uvicorn.run(
-        "main:app",
+        app,
         host="0.0.0.0",
-        port=port
+        port=port,
+        log_level="info",
+        access_log=True
     )
