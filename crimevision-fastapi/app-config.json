@@ -1,11 +1,6 @@
 {
-  "command": "python3 start.py",
-  "build_path": "./",
   "stack": "python_3_11",
-  "env_variables": {
-    "X_CATALYST_PORT": "9000",
-    "PORT": "9000"
-  },
-  "memory": 512,
-  "scripts": {}
+  "command": "uvicorn main:app --host 0.0.0.0 --port $X_CATALYST_PORT",
+  "build_path": "./",
+  "memory": 512
 }

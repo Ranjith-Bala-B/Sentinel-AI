@@ -1,10 +1,6 @@
 {
   "name": "sentinel-ai-backend",
   "stack": "python_3_11",
-  "command": "python3 start.py",
-  "build_path": "./",
-  "env_variables": {
-    "X_CATALYST_PORT": "9000",
-    "PORT": "9000"
-  }
+  "command": "uvicorn main:app --host 0.0.0.0 --port $X_CATALYST_PORT",
+  "build_path": "./"
 }

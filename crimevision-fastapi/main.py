@@ -29,15 +29,16 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from common.database import engine, Base, SessionLocal, get_db
-from common.models import User
+from common.database import engine, Base, SessionLocal, get_db, verify_db_connection, check_database_health, verify_crud_operations
+from common.logger import get_logger
 from routers import (
     auth, crimes, dashboard, assistant, insights,
     geospatial, hotspots, networks, offenders,
     predictions, sociological, investigator, admin
 )
 
-app = FastAPI(title="Sentinel AI - CrimeVision API", version="1.0")
+logger = get_logger("main-service")
+app = FastAPI(title="Sentinel AI - CrimeVision API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -48,7 +49,8 @@ app.add_middleware(
         "https://sentinel-ai-frontend-50044342253.development.catalystappsail.in",
         "http://localhost:5173",
         "http://localhost:3000",
-        "http://localhost:9000"
+        "http://localhost:9000",
+        "http://localhost:8000"
     ],
     allow_origin_regex=r"https://.*\.(onslate\.in|catalystserverless\.in|catalystappsail\.in)",
     allow_credentials=True,
@@ -59,22 +61,59 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_event():
     try:
-        # Automatically create missing tables if any
-        Base.metadata.create_all(bind=engine)
-        db = SessionLocal()
-        try:
-            from common.models import CrimeCase
-            count = db.query(CrimeCase).count()
-            if count == 0:
-                print("[STARTUP INFO] Initializing and seeding empty database tables...")
-                from seed import seed_database
-                seed_database()
-            else:
-                print(f"[STARTUP INFO] Database active with {count} records. No re-seeding required.")
-        finally:
-            db.close()
+        logger.info("Initializing Sentinel AI Backend startup sequence...")
+        db_connected = verify_db_connection(max_retries=3, retry_delay=1.0)
+        
+        if db_connected:
+            Base.metadata.create_all(bind=engine)
+            db = SessionLocal()
+            try:
+                from common.models import CrimeCase
+                import datetime
+                
+                is_healthy, db_name, _ = check_database_health()
+                
+                # Fetch Table Count using raw SQL depending on dialect
+                table_count = "Unknown"
+                try:
+                    if "sqlite" in str(engine.url):
+                        table_count = db.execute("SELECT count(*) FROM sqlite_master WHERE type='table'").scalar()
+                    else:
+                        table_count = db.execute(f"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '{db_name}'").scalar()
+                except Exception as e:
+                    pass
+                
+                total_cases = db.query(CrimeCase).count()
+                
+                # ASCII Art Logging
+                print("\n==============================")
+                print("Sentinel-AI Startup")
+                print("==============================")
+                print("✓ MySQL Connected" if "mysql" in str(engine.url).lower() else "✓ Database Connected")
+                print(f"Database: {db_name}")
+                print(f"Tables Found: {table_count}")
+                print(f"Total Cases: {total_cases}")
+                print("==============================\n")
+                
+                logger.info(f"Database active with {total_cases} records.")
+                
+                if total_cases == 0:
+                    logger.info("Initializing and seeding database tables...")
+                    from seed import seed_database
+                    seed_database()
+                    
+                # Verify CRUD
+                verify_crud_operations(db)
+                
+            finally:
+                db.close()
+        else:
+            is_healthy, db_name, exc = check_database_health()
+            print("\n✗ MySQL Connection Failed" if "mysql" in str(engine.url).lower() else "\n✗ Database Connection Failed")
+            print(f"Reason: {exc}")
+            logger.warning("Database connection unavailable at startup. Server starting in standalone mode.")
     except Exception as exc:
-        print(f"[STARTUP WARN] Database auto-seed check error: {exc}")
+        logger.error(f"Startup warning (non-fatal): {exc}", exc_info=True)
 
 # Include Routers for all dashboards
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -114,6 +153,36 @@ def get_heatmap_api(db: Session = Depends(get_db)):
         })
     return Envelope.ok(heatmap_data)
 
+@app.get("/api/dashboard")
+def api_dashboard(db: Session = Depends(get_db)):
+    from routers.dashboard import _load_summary_from_db
+    from common.schemas import Envelope
+    return Envelope.ok(_load_summary_from_db(db))
+
+@app.get("/api/crimes")
+def api_crimes(db: Session = Depends(get_db)):
+    from common.models import CrimeCase
+    from common.schemas import Envelope
+    cases = db.query(CrimeCase).order_by(CrimeCase.date_time.desc()).limit(100).all()
+    # Convert SQLAlchemy objects to dicts for Pydantic serialization
+    cases_list = []
+    for c in cases:
+        cases_list.append({
+            "crime_id": c.crime_id,
+            "fir_number": c.fir_number,
+            "crime_type": c.crime_type,
+            "status": c.status,
+            "district": c.district,
+            "police_station": c.police_station,
+            "severity_score": c.severity_score
+        })
+    return Envelope.ok(cases_list)
+
+@app.get("/api/analytics")
+def api_analytics():
+    from common.schemas import Envelope
+    return Envelope.ok({"status": "active", "message": "Analytics engine running"})
+
 @app.get("/")
 def root():
     return {
@@ -123,8 +192,68 @@ def root():
 
 @app.get("/health")
 @app.get("/healthz")
-def health():
-    return {"status": "ok"}
+def health(db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    import datetime
+    
+    is_healthy, db_name, exc = check_database_health()
+    
+    if is_healthy:
+        from common.models import CrimeCase
+        try:
+            total_cases = db.query(CrimeCase).count()
+        except Exception:
+            total_cases = 0
+            
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "database_name": db_name,
+            "server": "MySQL" if "mysql" in str(engine.url).lower() else "SQLite",
+            "message": "Database connection successful",
+            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "total_cases": total_cases
+        }
+    else:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "database": "disconnected",
+                "message": "Unable to connect to MySQL",
+                "error": str(exc)
+            }
+        )
+
+@app.get("/database/info")
+def database_info():
+    is_healthy, db_name, exc = check_database_health()
+    if not is_healthy:
+        return {"status": "unhealthy", "error": str(exc)}
+    
+    table_names = list(Base.metadata.tables.keys())
+    return {
+        "database": db_name,
+        "server": "MySQL" if "mysql" in str(engine.url).lower() else "SQLite",
+        "tables": table_names
+    }
+
+@app.get("/database/ping")
+def database_ping(db: Session = Depends(get_db)):
+    try:
+        from sqlalchemy import text
+        if "sqlite" in str(engine.url):
+            result = db.execute(text("SELECT datetime('now')")).scalar()
+        else:
+            result = db.execute(text("SELECT NOW()")).scalar()
+            
+        return {
+            "status": "connected",
+            "mysql_time": str(result)
+        }
+    except Exception as e:
+        return {"status": "disconnected", "error": str(e)}
 
 @app.get("/version")
 def version():
@@ -138,8 +267,7 @@ def version():
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     import traceback
-    print(f"[UNHANDLED EXCEPTION] {request.method} {request.url.path}: {exc}")
-    traceback.print_exc()
+    logger.error(f"[UNHANDLED EXCEPTION] {request.method} {request.url.path}: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
         content={
@@ -151,6 +279,6 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("X_CATALYST_PORT") or os.environ.get("PORT") or "8080")
-    print(f"[INFO] Starting Sentinel AI FastAPI server on 0.0.0.0:{port}...")
+    port = int(os.environ.get("X_CATALYST_PORT") or os.environ.get("PORT") or "9000")
+    logger.info(f"Starting Sentinel AI FastAPI server on 0.0.0.0:{port}...")
     uvicorn.run(app, host="0.0.0.0", port=port)
