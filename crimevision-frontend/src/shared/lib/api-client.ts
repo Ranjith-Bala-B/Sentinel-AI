@@ -53,10 +53,16 @@ function resolveEndpointPath(path: string): string {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const user = await catalystAuth.currentUser();
+  const method = (init?.method ?? "GET").toUpperCase();
   const headers = new Headers(init?.headers);
   headers.set("Content-Type", "application/json");
-  if (user) headers.set("Authorization", `Bearer ${user.userId}`);
+
+  if (method !== "GET") {
+    const user = await catalystAuth.currentUser();
+    if (user) {
+      headers.set("Authorization", `Bearer ${user.userId}`);
+    }
+  }
 
   const endpoint = resolveEndpointPath(path);
   const targetUrl = `${BASE_URL}${endpoint}`;
