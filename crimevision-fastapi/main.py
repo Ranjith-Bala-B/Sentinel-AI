@@ -40,7 +40,16 @@ app = FastAPI(title="Sentinel AI - CrimeVision API", version="1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://sentinel-ai-uoziitvq.onslate.in",
+        "https://sentinel-ai-lzbugrhn.onslate.in",
+        "https://sentinel-ai-60073690708.development.catalystserverless.in",
+        "https://sentinel-ai-frontend-50044342253.development.catalystappsail.in",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://localhost:9000"
+    ],
+    allow_origin_regex=r"https://.*\.(onslate\.in|catalystserverless\.in|catalystappsail\.in)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
